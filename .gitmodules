@@ -1,0 +1,12 @@
+[submodule "external/cgltf"]
+	path = external/cgltf
+	url = https://github.com/jkuhlmann/cgltf.git
+[submodule "external/glfw"]
+	path = external/glfw
+	url = https://github.com/glfw/glfw
+[submodule "external/glm"]
+	path = external/glm
+	url = https://github.com/g-truc/glm
+[submodule "external/volk"]
+	path = external/volk
+	url = https://github.com/zeux/volk

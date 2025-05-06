@@ -12,7 +12,7 @@ layout (binding = 0) uniform UBO
     vec3 cameraPos;
 } ubo;
 
-layout (push_constant) uniform PushConstants
+layout (push_constant) uniform PushConstant
 {
     mat4 model;
     int materialIndex;
@@ -30,7 +30,7 @@ void main()
 {
     vec4 worldPos = push.model * vec4(pos, 1.0);
     gl_Position = ubo.projection * ubo.view * worldPos;
-    outNormal = normal;
+    outNormal = normalize(normal);
     outUV = uv;
     outWorldPos = vec3(worldPos);
 }

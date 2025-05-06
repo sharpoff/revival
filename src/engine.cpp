@@ -6,7 +6,7 @@
 #include "backends/imgui_impl_vulkan.h"
 
 Engine::Engine(const char *name, int width, int height, bool isFullscreen)
-    : width(width), height(height), meshRenderer(materials, lights, camera)
+    : width(width), height(height), meshRenderer(materials, lights, camera), solidRenderer(camera)
 {
     srand(time(0));
     if (!glfwInit()) {
@@ -46,13 +46,14 @@ Engine::Engine(const char *name, int width, int height, bool isFullscreen)
 
     lights = {
         {{2.0, 1.0, 4.0}, {0.8, 0.8, 0.8}},
-        {{-4.0, 3.0, 4.0}, {0.8, 0.8, 0.8}},
+        // {{-4.0, 3.0, 4.0}, {0.8, 0.8, 0.8}},
     };
 
     // load gltf scenes
     loadScene(&scenes["cube"], vertices, indices, texturePaths, materials, lights, "models/cube.gltf");
     loadScene(&scenes["shadow_test"], vertices, indices, texturePaths, materials, lights, "models/shadow_test.gltf");
     loadScene(&scenes["helmet"], vertices, indices, texturePaths, materials, lights, "models/DamagedHelmet/DamagedHelmet.gltf");
+    scenes["helmet"].modelMatrix = glm::translate(vec3(0.0, 2.0, 4.0));
 
     // load textures
     textures.resize(texturePaths.size());
@@ -72,7 +73,9 @@ Engine::Engine(const char *name, int width, int height, bool isFullscreen)
 
     // load renderers
     meshRenderer.create(vkDevice, textures);
+    solidRenderer.create(vkDevice);
 
+    // some settings
     camera.position = vec3(0.0f, 1.5f, 3.0f);
     camera.rotation = quat(1.0f, 0.0f, 0.0f, 0.0f);
     camera.moveSpeed = 1.5f;
@@ -83,13 +86,11 @@ Engine::~Engine()
 {
     vkDeviceWaitIdle(vkDevice.getDevice());
 
-    for (size_t i = 0; i < textures.size(); i++) {
-        vkDevice.destroyImage(textures[i].image);
-        vkDestroyImageView(vkDevice.getDevice(), textures[i].imageView, nullptr);
-        vkDestroySampler(vkDevice.getDevice(), textures[i].sampler, nullptr);
-    }
+    for (size_t i = 0; i < textures.size(); i++)
+        vkDevice.destroyTexture(textures[i]);
 
     meshRenderer.destroy(vkDevice);
+    solidRenderer.destroy(vkDevice);
 
     vkDevice.destroyBuffer(vertexBuffer);
     vkDevice.destroyBuffer(indexBuffer);
@@ -123,14 +124,12 @@ void Engine::draw()
 
     auto drawFrame = [&]() {
         beginDebugLabel(cmd, "Meshes");
-        scenes["shadow_test"].modelMatrix = mat4(1.0);
         meshRenderer.draw(scenes["shadow_test"], vkDevice, vertexBuffer, indexBuffer);
-
         meshRenderer.draw(scenes["helmet"], vkDevice, vertexBuffer, indexBuffer);
 
         for (size_t i = 0; i < lights.size(); i++) {
             scenes["cube"].modelMatrix = glm::translate(lights[i].position) * glm::scale(vec3(0.2));
-            meshRenderer.draw(scenes["cube"], vkDevice, vertexBuffer, indexBuffer);
+            solidRenderer.draw(scenes["cube"], lights[i].color, vkDevice, vertexBuffer, indexBuffer);
         }
         endDebugLabel(cmd);
 
@@ -164,18 +163,18 @@ void Engine::drawImgui()
     }
 
     {
-        ImGui::Begin("Scenes");
-
-        size_t i = 0;
-        for (auto &[name, scene] : scenes) {
-            ImGui::PushID(i++);
-            static vec3 pos = vec3(1.0);
-            if (ImGui::DragFloat3((name + " position").c_str(), &pos[0], 1.0f, -100.0f, 100.0f)) {
-                scene.modelMatrix = glm::translate(mat4(1.0), pos);
-            }
+        ImGui::Begin("Textures");
+        for (size_t i = 0; i < textures.size(); i++) {
+            assert(textures.size() == texturePaths.size()); // to display texture path of a texture by index
+            Texture texture = textures[i];
+            ImGui::PushID(i);
+                if (ImGui::TreeNode(texturePaths[i].stem().c_str())) {
+                    ImGui::Text("Full size: %d x %d", texture.width, texture.height);
+                    ImGui::Image((ImTextureID)texture.imguiSet, ImVec2(std::min(250, texture.width), std::min(250, texture.height)));
+                    ImGui::TreePop();
+                }
             ImGui::PopID();
         }
-
         ImGui::End();
     }
 
@@ -231,11 +230,11 @@ void Engine::handleInput(double deltaTime)
 
 void Engine::update(double deltaTime)
 {
-    // update lights
-    for (auto &light : lights) {
-        float r = 0.02;
-        light.position += vec3(r * cos(glfwGetTime()), 0, r * sin(glfwGetTime()));
-    }
+    // update lights position
+    // for (auto &light : lights) {
+    //     float r = 0.02;
+    //     light.position += vec3(r * cos(glfwGetTime()), 0, r * sin(glfwGetTime()));
+    // }
 }
 
 void Engine::framebufferResizeCallback(GLFWwindow* window, int width, int height)

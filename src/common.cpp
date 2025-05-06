@@ -131,6 +131,7 @@ void writeImages(VkDevice device, VkDescriptorSet set, uint32_t binding, VkDescr
     vkUpdateDescriptorSets(device, 1, &write, 0, 0);
 }
 
+
 VkPipelineLayout createPipelineLayout(VkDevice device, VkDescriptorSetLayout setLayout)
 {
     VkPipelineLayoutCreateInfo layoutInfo = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};

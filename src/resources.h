@@ -21,4 +21,9 @@ struct Texture
     Image image;
     VkImageView imageView;
     VkSampler sampler;
+
+    int width;
+    int height;
+
+    VkDescriptorSet imguiSet;
 };

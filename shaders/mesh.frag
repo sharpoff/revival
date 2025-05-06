@@ -40,9 +40,9 @@ layout (location = 0) out vec4 fragColor;
 void main()
 {
     vec3 albedo = vec3(1.0);
-    float specular = 0.1;
+    float specular = 0.5;
     vec3 emissive = vec3(0.0);
-    vec3 normal = normalize(inNormal);
+    vec3 normal = inNormal;
 
     if (push.materialIndex > -1) {
         Material material = materials[push.materialIndex];
@@ -69,12 +69,14 @@ void main()
         Light light = lights[i];
         vec3 lightDir = normalize(light.pos - inWorldPos);
         vec3 viewDir = normalize(ubo.cameraPos - inWorldPos);
-        vec3 reflectDir = reflect(-viewDir, normal);
+        vec3 halfwayDir = normalize(lightDir + viewDir);
+        // vec3 reflectDir = reflect(-lightDir, normal);
 
         diffuse += max(dot(normal, lightDir), 0.1) * light.color;
-        spec += pow(max(dot(viewDir, reflectDir), 0.0), 64) * 0.5;
+        spec += specular * 0.5 * pow(max(dot(viewDir, halfwayDir), 0.0), 16) * light.color;
     }
 
-    vec3 color = diffuse * albedo + spec * specular + emissive;
+    vec3 color = albedo * max(vec3(0.1), (diffuse + spec + emissive));
+
     fragColor = vec4(color, 1.0);
 }

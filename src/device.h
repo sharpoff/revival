@@ -7,6 +7,8 @@
 #include "resources.h"
 #include <functional>
 
+#define MAX_IMGUI_TEXTURES 1000
+
 class VulkanDevice
 {
 public:
@@ -22,6 +24,7 @@ public:
 
     void destroyBuffer(Buffer &buffer);
     void destroyImage(Image &image);
+    void destroyTexture(Texture &texture);
 
     void uploadBuffer(Buffer &buffer, void *data, VkDeviceSize size);
 

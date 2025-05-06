@@ -683,6 +683,14 @@ void VulkanDevice::destroyImage(Image &image)
     vkFreeMemory(device, image.memory, nullptr);
 }
 
+void VulkanDevice::destroyTexture(Texture &texture)
+{
+    destroyImage(texture.image);
+    vkDestroyImageView(device, texture.imageView, nullptr);
+    vkDestroySampler(device, texture.sampler, nullptr);
+    ImGui_ImplVulkan_RemoveTexture(texture.imguiSet);
+}
+
 void VulkanDevice::uploadBuffer(Buffer &buffer, void *data, VkDeviceSize size)
 {
     Buffer staging;
@@ -745,6 +753,9 @@ void VulkanDevice::createTexture(Texture &texture, const char *file, VkFormat fo
         return;
     }
 
+    texture.width = width;
+    texture.height = height;
+
     uint32_t size = width * height * STBI_rgb_alpha;
 
     createImage(texture.image, width, height, format, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
@@ -803,6 +814,8 @@ void VulkanDevice::createTexture(Texture &texture, const char *file, VkFormat fo
     texture.sampler = createSampler(VK_FILTER_LINEAR, VK_FILTER_LINEAR);
     texture.imageView = createImageView(texture.image.image, VK_IMAGE_VIEW_TYPE_2D, format, VK_IMAGE_ASPECT_COLOR_BIT);
 
+    texture.imguiSet = ImGui_ImplVulkan_AddTexture(texture.sampler, texture.imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
     destroyBuffer(staging);
 }
 
@@ -822,7 +835,7 @@ void VulkanDevice::initializeImGui()
 
     // Create descriptor pool
     std::vector<VkDescriptorPoolSize> poolSizes = {
-        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, IMGUI_IMPL_VULKAN_MINIMUM_IMAGE_SAMPLER_POOL_SIZE },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_IMGUI_TEXTURES},
     };
     imGuiDesctiptorPool = createDescriptorPool(device, poolSizes);
 

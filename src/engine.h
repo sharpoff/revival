@@ -2,7 +2,8 @@
 
 #include <GLFW/glfw3.h>
 #include "device.h"
-#include "mesh_renderer.h"
+#include "renderers/mesh_renderer.h"
+#include "renderers/solid_renderer.h"
 
 class Engine
 {
@@ -30,6 +31,7 @@ private:
 
     // renderers (pipelines, descriptors and other pipeline specific stuff)
     MeshRenderer meshRenderer;
+    SolidRenderer solidRenderer;
 
     // global data
     Camera camera;

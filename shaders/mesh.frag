@@ -5,15 +5,13 @@
 
 #include "types.glsl"
 
-layout (binding = 0) uniform UBO
+layout (binding = 1) uniform UBO
 {
     mat4 projection;
     mat4 view;
     uint numLights;
     vec3 cameraPos;
 } ubo;
-
-layout (binding = 1) uniform sampler2D textures[];
 
 layout (binding = 2) readonly buffer MaterialData
 {
@@ -24,6 +22,8 @@ layout (binding = 3) readonly buffer LightData
 {
     Light lights[];
 };
+
+layout (binding = 4) uniform sampler2D textures[];
 
 layout (push_constant) uniform PushConstant
 {
@@ -77,6 +77,7 @@ void main()
     }
 
     vec3 color = albedo * max(vec3(0.1), (diffuse + spec + emissive));
+    // vec3 color = albedo;
 
     fragColor = vec4(color, 1.0);
 }

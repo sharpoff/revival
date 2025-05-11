@@ -22,12 +22,14 @@ target_link_libraries(playground
     PUBLIC
 
     vulkan
-    glfw
     volk
+    GPUOpen::VulkanMemoryAllocator
+    glfw
     stb
     glm
-    cgltf
+    assimp
     imgui
+    Jolt
 )
 
 # https://gist.github.com/evilactually/a0d191701cb48f157b05be7f74d79396
@@ -47,7 +49,7 @@ add_custom_target(shaders DEPENDS ${SPIRV_BINARY_FILES})
 add_dependencies(playground shaders)
 
 add_executable(main
-    src/main.cpp
+    src/revival/main.cpp
 )
 
 target_link_libraries(main

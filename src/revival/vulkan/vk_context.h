@@ -1,25 +1,33 @@
 #pragma once
 
 #include <vector>
-#include "common.h"
-#include <GLFW/glfw3.h>
 #include <array>
-#include "resources.h"
-#include <functional>
+#include <volk.h>
+#include "vk_mem_alloc.h"
+#include <GLFW/glfw3.h>
+#include <revival/resources.h>
+#include <revival/vulkan/common.h>
 
-#define MAX_IMGUI_TEXTURES 1000
+const int MAX_IMGUI_TEXTURES = 1000;
+const int FRAMES_IN_FLIGHT = 2;
 
-class VulkanDevice
+class VulkanContext
 {
 public:
     void create(GLFWwindow *window);
     void destroy();
 
-    void draw(std::function<void()> drawFunction);
+    VkCommandBuffer beginCommandBuffer();
+    void endCommandBuffer(VkCommandBuffer cmd);
+    void submitCommandBuffer(VkCommandBuffer cmd);
+
+    void beginFrame(VkCommandBuffer cmd);
+    void beginFrame(VkCommandBuffer cmd, VkImage &depthImage, VkImageView &depthImageView);
+    void endFrame(VkCommandBuffer cmd);
 
     // resource creation
-    void createBuffer(Buffer &buffer, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memoryFlags);
-    void createImage(Image &image, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage, VkMemoryPropertyFlags memoryFlags);
+    void createBuffer(Buffer &buffer, uint64_t size, VkBufferUsageFlags usage, VmaMemoryUsage memUsage = VMA_MEMORY_USAGE_AUTO);
+    void createImage(Image &image, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage);
     VkImageView createImageView(VkImage image, VkImageViewType type, VkFormat format, VkImageAspectFlags aspect);
 
     void destroyBuffer(Buffer &buffer);
@@ -31,17 +39,21 @@ public:
     VkSampler createSampler(VkFilter minFilter, VkFilter magFilter);
 
     void createTexture(Texture &texture, const char *file, VkFormat format);
+    void createDepthTexture(Texture &texture, int width, int height, VkFormat format, VkImageUsageFlags usage);
 
     void requestResize();
 
     // getters
     VkDevice getDevice() { return device; };
-    VkCommandBuffer getCommandBuffer() { return commandBuffers[currentFrame]; };
     VkExtent2D getSwapchainExtent() { return swapchainExtent; };
+    VkImage &getSwapchainImage() { return swapchainImages[imageIndex]; };
+    VkImageView &getSwapchainImageView() { return swapchainImageViews[imageIndex]; };
 private:
     VkInstance createInstance();
     VkSurfaceKHR createSurface(VkInstance instance, GLFWwindow *window);
     VkDebugUtilsMessengerEXT createDebugMessenger(VkInstance instance);
+    VmaAllocator createAllocator(VkInstance instance, VkDevice device, VkPhysicalDevice physicalDevice, VmaAllocatorCreateFlags flags);
+
     VkPhysicalDevice createPhyiscalDevice(VkInstance instance, VkSurfaceKHR surface, uint32_t &queueFamilyIndex);
     VkDevice createDevice(VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physical, uint32_t queueFamilyIndex);
 
@@ -54,7 +66,6 @@ private:
     void recreateSwapchain();
 
     void initializeImGui();
-
 private:
     GLFWwindow *pWindow;
 
@@ -63,6 +74,7 @@ private:
 #ifndef NDEBUG
     VkDebugUtilsMessengerEXT debugMessenger;
 #endif
+    VmaAllocator allocator;
 
     VkPhysicalDevice physicalDevice;
     VkDevice device;
@@ -75,9 +87,6 @@ private:
     std::vector<VkImage> swapchainImages;
     std::vector<VkImageView> swapchainImageViews;
 
-    Image depthImage;
-    VkImageView depthImageView;
-
     VkCommandPool commandPool;
     std::array<VkCommandBuffer, FRAMES_IN_FLIGHT> commandBuffers;
 
@@ -85,10 +94,10 @@ private:
     std::array<VkSemaphore, FRAMES_IN_FLIGHT> submitSemaphores;
     std::array<VkFence, FRAMES_IN_FLIGHT> finishRenderFences;
 
-    uint32_t imageCount = 0;
+    uint32_t imageIndex = 0;
     uint32_t currentFrame = 0;
 
-    bool isResizing = false;
+    bool resizeRequested = false;
 
     // dear imgui
     VkDescriptorPool imGuiDesctiptorPool;

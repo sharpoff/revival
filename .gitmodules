@@ -1,6 +1,3 @@
-[submodule "external/cgltf"]
-	path = external/cgltf
-	url = https://github.com/jkuhlmann/cgltf.git
 [submodule "external/glfw"]
 	path = external/glfw
 	url = https://github.com/glfw/glfw
@@ -10,3 +7,12 @@
 [submodule "external/volk"]
 	path = external/volk
 	url = https://github.com/zeux/volk
+[submodule "external/VulkanMemoryAllocator"]
+	path = external/VulkanMemoryAllocator
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
+[submodule "external/assimp"]
+	path = external/assimp
+	url = https://github.com/assimp/assimp
+[submodule "external/JoltPhysics"]
+	path = external/JoltPhysics
+	url = https://github.com/jrouwe/JoltPhysics

@@ -1,19 +1,22 @@
 #pragma once
 
 #include <volk.h>
+#include <vk_mem_alloc.h>
 
 struct Buffer
 {
     VkBuffer buffer;
-    VkDeviceMemory memory;
     VkDeviceSize size;
-    void *mapped;
+    VmaAllocation allocation;
+    VmaAllocationInfo info;
+    VkDeviceAddress address;
 };
 
 struct Image
 {
     VkImage image;
-    VkDeviceMemory memory;
+    VmaAllocation allocation;
+    VmaAllocationInfo info;
 };
 
 struct Texture
@@ -25,5 +28,5 @@ struct Texture
     int width;
     int height;
 
-    VkDescriptorSet imguiSet;
+    VkDescriptorSet imguiSet = VK_NULL_HANDLE;
 };

@@ -1,4 +1,4 @@
-#include "descriptor_writer.h"
+#include <revival/vulkan/descriptor_writer.h>
 
 void DescriptorWriter::write(uint32_t binding, VkBuffer &buffer, uint32_t size, VkDescriptorType type)
 {

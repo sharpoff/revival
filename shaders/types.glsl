@@ -14,4 +14,12 @@ struct Light
 {
     vec3 pos;
     vec3 color;
+    uint shadowMapId;
+};
+
+struct Vertex
+{
+    vec3 pos;
+    vec2 uv;
+    vec3 normal;
 };

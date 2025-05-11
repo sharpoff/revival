@@ -1,4 +1,4 @@
-#include "math/math.h"
+#include <revival/math/math.h>
 
 namespace math
 {

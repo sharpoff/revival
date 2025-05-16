@@ -33,6 +33,7 @@ void main()
 
     vec4 worldPos = push.model * vec4(vertex.pos, 1.0);
     gl_Position = ubo.projection * ubo.view * worldPos;
+
     outNormal = normalize(vertex.normal);
     outUV = vertex.uv;
     outWorldPos = vec3(worldPos);

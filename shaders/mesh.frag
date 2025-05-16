@@ -37,6 +37,17 @@ layout (location = 2) in vec3 inWorldPos;
 
 layout (location = 0) out vec4 fragColor;
 
+#define TEX(id, uv) texture(textures[nonuniformEXT(id)], uv)
+
+float calculateShadow(vec4 shadowCoord, uint shadowMapIndex)
+{
+    float shadow = 1.0;
+    if (TEX(shadowMapIndex, shadowCoord.xy).r > shadowCoord.z) {
+        shadow = 0.1;
+    }
+    return shadow;
+}
+
 void main()
 {
     vec3 albedo = vec3(1.0);
@@ -49,35 +60,48 @@ void main()
 
         albedo = material.albedoFactor.rgb;
         if (material.albedoTexture > -1)
-            albedo = texture(textures[nonuniformEXT(material.albedoTexture)], inUV).rgb;
+            albedo = TEX(material.albedoTexture, inUV).rgb;
 
         specular = material.specularFactor;
         if (material.specularTexture > -1)
-            specular = texture(textures[nonuniformEXT(material.specularTexture)], inUV).r;
+            specular = TEX(material.specularTexture, inUV).r;
 
         emissive = material.emissiveFactor;
         if (material.emissiveTexture > -1)
-            emissive = texture(textures[nonuniformEXT(material.emissiveTexture)], inUV).rgb;
+            emissive = TEX(material.emissiveTexture, inUV).rgb;
 
         if (material.normalTexture > -1)
-            normal = texture(textures[nonuniformEXT(material.normalTexture)], inUV).rgb;
+            normal = TEX(material.normalTexture, inUV).rgb;
     }
 
-    vec3 diffuse = vec3(0.0);
-    vec3 spec = vec3(0.0);
+    vec3 albedoOut = albedo;
+    vec3 diffuseOut = vec3(0.0);
+    vec3 specularOut = vec3(0.0);
+
+    vec3 color = vec3(0.0); // output color
+    float shadowOut = 1.0;
+
     for (uint i = 0; i < ubo.numLights; i++) {
         Light light = lights[i];
         vec3 lightDir = normalize(light.pos - inWorldPos);
         vec3 viewDir = normalize(ubo.cameraPos - inWorldPos);
-        vec3 halfwayDir = normalize(lightDir + viewDir);
-        // vec3 reflectDir = reflect(-lightDir, normal);
+        vec3 halfwayDir = normalize(lightDir + viewDir); // blinn-phong
 
-        diffuse += max(dot(normal, lightDir), 0.1) * light.color;
-        spec += specular * 0.5 * pow(max(dot(viewDir, halfwayDir), 0.0), 16) * light.color;
+        diffuseOut += max(dot(normal, lightDir), 0.1) * light.color;
+        specularOut += specular * 0.5 * pow(max(dot(viewDir, halfwayDir), 0.0), 32) * light.color;
+
+        vec4 shadowCoord = light.mvp * vec4(inWorldPos, 1.0);
+        // shadowOut = calculateShadow(shadowCoord / shadowCoord.w, light.shadowMapIndex);
+        shadowCoord /= shadowCoord.w;
+        shadowCoord = shadowCoord * 0.5 + 0.5;
+        float closestDepth = TEX(light.shadowMapIndex, shadowCoord.xy).r;
+        float currentDepth = shadowCoord.z;
+        shadowOut = currentDepth > closestDepth ? 1.0 : 0.0;
+        color = vec3(currentDepth);
     }
 
-    vec3 color = albedo * max(vec3(0.1), (diffuse + spec + emissive));
-    // vec3 color = albedo;
+    // color = albedoOut * (diffuseOut + specularOut + emissive) * shadowOut;
+    // color = vec3(shadowOut);
 
     fragColor = vec4(color, 1.0);
 }

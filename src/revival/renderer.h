@@ -1,6 +1,6 @@
 #pragma once
 
-#include <revival/vulkan/vk_context.h>
+#include <revival/vulkan/graphics.h>
 #include <revival/camera.h>
 #include <revival/types.h>
 
@@ -11,6 +11,7 @@ namespace Renderer
 
     void render();
     void renderScene(VkCommandBuffer cmd, Scene &scene);
+    void renderShadowMap(VkCommandBuffer cmd, mat4 mvp, Scene &scene);
 
     void renderImgui(VkCommandBuffer cmd);
 

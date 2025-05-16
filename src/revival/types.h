@@ -1,6 +1,5 @@
 #pragma once
 
-#include <volk.h>
 #include <vector>
 #include "math/math.h"
 
@@ -27,8 +26,10 @@ struct Material
 // should match the shader
 struct Light
 {
+    alignas(16) mat4 mvp;
     alignas(16) vec3 position;
     alignas(16) vec3 color;
+    uint shadowMapIndex;
 };
 
 struct Mesh

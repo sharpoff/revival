@@ -9,8 +9,8 @@ class DescriptorWriter
 public:
     void write(uint32_t binding, VkBuffer &buffer, uint32_t size, VkDescriptorType type);
     void write(uint32_t binding, VkImageView &imageView, VkSampler &sampler, VkImageLayout layout, VkDescriptorType type);
-    void write(uint32_t binding, std::vector<VkDescriptorImageInfo> &imageInfos, VkDescriptorType type);
-    void write(uint32_t binding, std::vector<VkDescriptorBufferInfo> &bufferInfos, VkDescriptorType type);
+    void write(uint32_t binding, VkDescriptorImageInfo *infos, uint32_t infosSize, VkDescriptorType type);
+    void write(uint32_t binding, VkDescriptorBufferInfo *infos, uint32_t infosSize, VkDescriptorType type);
 
     void update(VkDevice device, VkDescriptorSet set);
     void clear();

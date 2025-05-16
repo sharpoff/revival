@@ -15,6 +15,3 @@
 // stb
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
-
-// jolt
-#include <Jolt/Jolt.h>

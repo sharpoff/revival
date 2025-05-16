@@ -3,9 +3,8 @@
 #include <revival/math/math.h>
 #include <GLFW/glfw3.h>
 
-class Camera
+struct Camera
 {
-public:
     void update(float deltaTime);
     void handleInput(GLFWwindow *window, float deltaTime);
     mat4 getView();

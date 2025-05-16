@@ -1,4 +1,6 @@
+* Simple 2D Edtior
+* Font text rendering (e.g. using FreeType library)
 * Shadowmap
 * PBR
-* Cubemap
+* Cubemap (skybox)
 * Billboards (to represent lights for example)

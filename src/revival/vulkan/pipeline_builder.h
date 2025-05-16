@@ -11,6 +11,7 @@ public:
     void setBindingDescription(uint32_t binding, uint32_t stride, VkVertexInputRate inputRate);
     void setAttributeDescription(uint32_t location, uint32_t binding, VkFormat format, uint32_t offset);
     void setPipelineLayout(VkPipelineLayout &layout);
+    void clearShaders();
     void setShader(VkShaderModule module, VkShaderStageFlagBits stage);
     void setPolygonMode(VkPolygonMode polygonMode);
     void setCulling(VkCullModeFlags cullMode, VkFrontFace cullFace);
@@ -19,7 +20,7 @@ public:
     void setTopology(VkPrimitiveTopology topology);
     void setPatchControlPoints(uint32_t points);
 
-    VkPipeline build(VkDevice device);
+    VkPipeline build(VkDevice device, uint32_t colorAttachmentCount = 1, bool depthUsed = true);
 
 private:
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages;

@@ -1,11 +1,19 @@
 #include <revival/engine.h>
+#include <revival/fs.h>
 #include <stdio.h>
 #include <time.h>
 
-Engine::Engine(const char *name, int width, int height, bool isFullscreen)
-    : width(width), height(height)
+void Engine::initialize(const char *name, int width, int height, bool enableFullScreen)
 {
+    windowName = name;
+    windowWidth = width;
+    windowHeight = height;
+
+    // change current directory from build/ to a project root
+    std::filesystem::current_path(fs::getProjectRoot());
+
     srand(time(0));
+
     if (!glfwInit()) {
         printf("Failed to initialize glfw.\n");
         exit(EXIT_FAILURE);
@@ -13,7 +21,7 @@ Engine::Engine(const char *name, int width, int height, bool isFullscreen)
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
-    if (isFullscreen) {
+    if (enableFullScreen) {
         const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
         glfwWindowHint(GLFW_RED_BITS, mode->redBits);
         glfwWindowHint(GLFW_GREEN_BITS, mode->greenBits);
@@ -21,11 +29,11 @@ Engine::Engine(const char *name, int width, int height, bool isFullscreen)
         glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
 
         window = glfwCreateWindow(mode->width, mode->height, name, glfwGetPrimaryMonitor(), NULL);
-        this->width = mode->width;
-        this->height = mode->height;
+        windowWidth = mode->width;
+        windowHeight = mode->height;
         isFullscreen = true;
     } else {
-        window = glfwCreateWindow(this->width, this->height, name, NULL, NULL);
+        window = glfwCreateWindow(windowWidth, windowHeight, name, NULL, NULL);
         isFullscreen = false;
     }
     if (!window) {
@@ -44,7 +52,7 @@ Engine::Engine(const char *name, int width, int height, bool isFullscreen)
     camera.setPosition(vec3(0.0, 2.0, 3.0));
 }
 
-Engine::~Engine()
+void Engine::shutdown()
 {
     Renderer::shutdown();
     glfwTerminate();
@@ -80,14 +88,14 @@ void Engine::handleInput(double deltaTime)
     // fullscreen mode
     if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS) {
         const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
-        if (fullscreen)
-            glfwSetWindowMonitor(window, NULL, 0, 0, width, height, mode->refreshRate);
+        if (isFullscreen)
+            glfwSetWindowMonitor(window, NULL, 0, 0, windowWidth, windowHeight, mode->refreshRate);
         else
             glfwSetWindowMonitor(window, glfwGetPrimaryMonitor(), 0, 0, mode->width, mode->height, mode->refreshRate);
 
         Renderer::requestResize();
 
-        fullscreen = !fullscreen;
+        isFullscreen = !isFullscreen;
     }
 
     camera.handleInput(window, deltaTime);

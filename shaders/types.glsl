@@ -12,9 +12,10 @@ struct Material
 
 struct Light
 {
+    mat4 mvp;
     vec3 pos;
     vec3 color;
-    uint shadowMapId;
+    uint shadowMapIndex;
 };
 
 struct Vertex

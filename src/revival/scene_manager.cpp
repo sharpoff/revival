@@ -1,4 +1,5 @@
 #include <revival/scene_manager.h>
+#include <revival/fs.h>
 
 namespace SceneManager
 {
@@ -47,22 +48,22 @@ namespace SceneManager
 
             aiString texPath;
             if (aiGetMaterialTexture(m, aiTextureType_DIFFUSE, 0, &texPath) == AI_SUCCESS) {
-                material.albedoId = i + texturePaths.size();
+                material.albedoId = texturePaths.size();
                 texturePaths.push_back(dir / texPath.data);
             }
 
             if (aiGetMaterialTexture(m, aiTextureType_SPECULAR, 0, &texPath) == AI_SUCCESS) {
-                material.specularId = i + texturePaths.size();
+                material.specularId = texturePaths.size();
                 texturePaths.push_back(dir / texPath.data);
             }
 
             if (aiGetMaterialTexture(m, aiTextureType_NORMALS, 0, &texPath) == AI_SUCCESS) {
-                material.normalId = i + texturePaths.size();
+                material.normalId = texturePaths.size();
                 texturePaths.push_back(dir / texPath.data);
             }
 
             if (aiGetMaterialTexture(m, aiTextureType_EMISSIVE, 0, &texPath) == AI_SUCCESS) {
-                material.emissiveId = i + texturePaths.size();
+                material.emissiveId = texturePaths.size();
                 texturePaths.push_back(dir / texPath.data);
             }
 

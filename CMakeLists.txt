@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 set(CMAKE_CXX_STANDARD 17)
-project(Playground LANGUAGES CXX)
+project(Revival LANGUAGES CXX)
 
 file(GLOB_RECURSE SOURCE_FILES "src/*.cpp")
 file(GLOB_RECURSE HEADER_FILES "src/*.h")
@@ -10,15 +10,15 @@ add_compile_options("$<$<CONFIG:DEBUG>:-Wall>")
 
 add_subdirectory(external)
 
-add_library(playground
+add_library(revival
     STATIC
     ${SOURCE_FILES}
     ${HEADER_FILES}
 )
 
-target_include_directories(playground PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_include_directories(revival PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
-target_link_libraries(playground
+target_link_libraries(revival
     PUBLIC
 
     vulkan
@@ -27,8 +27,8 @@ target_link_libraries(playground
     glfw
     stb
     glm
-    assimp
     imgui
+    assimp
     Jolt
 )
 
@@ -46,7 +46,7 @@ foreach(GLSL ${GLSL_SOURCE_FILES})
 endforeach(GLSL)
 
 add_custom_target(shaders DEPENDS ${SPIRV_BINARY_FILES})
-add_dependencies(playground shaders)
+add_dependencies(revival shaders)
 
 add_executable(main
     src/revival/main.cpp
@@ -54,5 +54,5 @@ add_executable(main
 
 target_link_libraries(main
     PUBLIC
-    playground
+    revival
 )

@@ -5,30 +5,32 @@
 #include <volk.h>
 #include "vk_mem_alloc.h"
 #include <GLFW/glfw3.h>
-#include <revival/resources.h>
+#include <revival/vulkan/resources.h>
 #include <revival/vulkan/common.h>
 
 const int MAX_IMGUI_TEXTURES = 1000;
 const int FRAMES_IN_FLIGHT = 2;
 
-class VulkanContext
+class VulkanGraphics
 {
 public:
-    void create(GLFWwindow *window);
-    void destroy();
+    void init(GLFWwindow *window);
+    void shutdown();
 
     VkCommandBuffer beginCommandBuffer();
     void endCommandBuffer(VkCommandBuffer cmd);
     void submitCommandBuffer(VkCommandBuffer cmd);
 
     void beginFrame(VkCommandBuffer cmd);
-    void beginFrame(VkCommandBuffer cmd, VkImage &depthImage, VkImageView &depthImageView);
-    void endFrame(VkCommandBuffer cmd);
+    void beginFrame(VkCommandBuffer cmd, Image &depthImage);
+    void beginFrame(VkCommandBuffer cmd, std::vector<std::pair<VkRenderingAttachmentInfo, Image>> &attachments, VkExtent2D extent);
+
+    // TODO: add variation of endFrame with arbitrary number of barriers passed to it
+    void endFrame(VkCommandBuffer cmd, bool insertBarrier = true);
 
     // resource creation
     void createBuffer(Buffer &buffer, uint64_t size, VkBufferUsageFlags usage, VmaMemoryUsage memUsage = VMA_MEMORY_USAGE_AUTO);
-    void createImage(Image &image, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage);
-    VkImageView createImageView(VkImage image, VkImageViewType type, VkFormat format, VkImageAspectFlags aspect);
+    void createImage(Image &image, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage, VkImageViewType type, VkImageAspectFlags aspect);
 
     void destroyBuffer(Buffer &buffer);
     void destroyImage(Image &image);
@@ -38,8 +40,8 @@ public:
 
     VkSampler createSampler(VkFilter minFilter, VkFilter magFilter);
 
-    void createTexture(Texture &texture, const char *file, VkFormat format);
-    void createDepthTexture(Texture &texture, int width, int height, VkFormat format, VkImageUsageFlags usage);
+    void loadTextureInfo(TextureInfo &textureInfo, const char *file);
+    void createTexture(Texture &texture, TextureInfo &info, VkFormat format);
 
     void requestResize();
 
@@ -65,7 +67,7 @@ private:
 
     void recreateSwapchain();
 
-    void initializeImGui();
+    void initImGui();
 private:
     GLFWwindow *pWindow;
 
@@ -99,6 +101,5 @@ private:
 
     bool resizeRequested = false;
 
-    // dear imgui
     VkDescriptorPool imGuiDesctiptorPool;
 };

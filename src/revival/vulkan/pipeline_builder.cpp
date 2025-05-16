@@ -60,6 +60,11 @@ void PipelineBuilder::setPipelineLayout(VkPipelineLayout &layout)
     pipelineLayout = layout;
 }
 
+void PipelineBuilder::clearShaders()
+{
+    shaderStages.clear();
+}
+
 void PipelineBuilder::setShader(VkShaderModule module, VkShaderStageFlagBits stage)
 {
     VkPipelineShaderStageCreateInfo shaderInfo = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
@@ -113,7 +118,7 @@ void PipelineBuilder::setPatchControlPoints(uint32_t points)
     tessellationState.patchControlPoints = points;
 }
 
-VkPipeline PipelineBuilder::build(VkDevice device)
+VkPipeline PipelineBuilder::build(VkDevice device, uint32_t colorAttachmentCount, bool depthUsed)
 {
     vertexInputState.vertexAttributeDescriptionCount = attributeDescriptions.size();
     vertexInputState.pVertexAttributeDescriptions = attributeDescriptions.data();
@@ -125,17 +130,20 @@ VkPipeline PipelineBuilder::build(VkDevice device)
     dynamicState.dynamicStateCount = sizeof(dynamicStates) / sizeof(dynamicStates[0]);
 
     VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
-    colorBlendAttachment.colorWriteMask =  VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    colorBlendState.attachmentCount = 1;
-    colorBlendState.pAttachments = &colorBlendAttachment;
+    if (colorAttachmentCount > 0) {
+        colorBlendAttachment.colorWriteMask =  VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+        colorBlendState.attachmentCount = 1;
+        colorBlendState.pAttachments = &colorBlendAttachment;
+    }
 
     VkFormat colorFormat = VK_FORMAT_B8G8R8A8_SRGB;
     VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
 
     VkPipelineRenderingCreateInfoKHR renderingInfo = {VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR};
-    renderingInfo.colorAttachmentCount = 1;
+    renderingInfo.colorAttachmentCount = colorAttachmentCount;
     renderingInfo.pColorAttachmentFormats = &colorFormat;
-    renderingInfo.depthAttachmentFormat = depthFormat;
+    if (depthUsed)
+        renderingInfo.depthAttachmentFormat = depthFormat;
 
     VkGraphicsPipelineCreateInfo pipelineInfo = {VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
     pipelineInfo.pNext = &renderingInfo;

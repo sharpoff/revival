@@ -36,34 +36,34 @@ void DescriptorWriter::write(uint32_t binding, VkImageView &imageView, VkSampler
     writes.push_back(write);
 }
 
-void DescriptorWriter::write(uint32_t binding, std::vector<VkDescriptorImageInfo> &infos, VkDescriptorType type)
+void DescriptorWriter::write(uint32_t binding, VkDescriptorImageInfo *infos, uint32_t infosSize, VkDescriptorType type)
 {
-    for (auto &info : infos) {
-        imageInfos.push_back(info);
+    for (uint32_t i = 0; i < infosSize; i++) {
+        imageInfos.push_back(infos[i]);
     }
 
     VkWriteDescriptorSet write = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
     write.dstBinding = binding;
     write.dstSet = VK_NULL_HANDLE; // will be added on update
-    write.descriptorCount = infos.size();
+    write.descriptorCount = infosSize;
     write.descriptorType = type;
-    write.pImageInfo = infos.data();
+    write.pImageInfo = infos;
 
     writes.push_back(write);
 }
 
-void DescriptorWriter::write(uint32_t binding, std::vector<VkDescriptorBufferInfo> &infos, VkDescriptorType type)
+void DescriptorWriter::write(uint32_t binding, VkDescriptorBufferInfo *infos, uint32_t infosSize, VkDescriptorType type)
 {
-    for (auto &info : infos) {
-        bufferInfos.push_back(info);
+    for (uint32_t i = 0; i < infosSize; i++) {
+        bufferInfos.push_back(infos[i]);
     }
 
     VkWriteDescriptorSet write = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
     write.dstBinding = binding;
     write.dstSet = VK_NULL_HANDLE; // will be added on update
-    write.descriptorCount = infos.size();
+    write.descriptorCount = infosSize;
     write.descriptorType = type;
-    write.pBufferInfo = infos.data();
+    write.pBufferInfo = infos;
 
     writes.push_back(write);
 }

@@ -2,9 +2,11 @@
 
 int main()
 {
-    Engine engine("Game", 1280, 720, false);
+    Engine engine;
+    engine.initialize("Game", 1280, 720, false);
 
     engine.run();
 
+    engine.shutdown();
     return 0;
 }

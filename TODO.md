@@ -1,4 +1,3 @@
-* Simple 2D Edtior
 * Font text rendering (e.g. using FreeType library)
 * Shadowmap
 * PBR

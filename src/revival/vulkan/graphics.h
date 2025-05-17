@@ -49,6 +49,7 @@ public:
     VkDevice getDevice() { return device; };
     VkExtent2D getSwapchainExtent() { return swapchainExtent; };
     VkImage &getSwapchainImage() { return swapchainImages[imageIndex]; };
+    Image &getDepthImage() { return depthImage; };
     VkImageView &getSwapchainImageView() { return swapchainImageViews[imageIndex]; };
 private:
     VkInstance createInstance();
@@ -98,6 +99,8 @@ private:
 
     uint32_t imageIndex = 0;
     uint32_t currentFrame = 0;
+
+    Image depthImage;
 
     bool resizeRequested = false;
 

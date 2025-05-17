@@ -4,8 +4,9 @@
 #include <revival/renderer.h>
 #include <revival/camera.h>
 
-struct Engine
+class Engine
 {
+public:
     void initialize(const char *name, int width, int height, bool isFullscreen = true);
     void shutdown();
     void run();
@@ -16,6 +17,7 @@ private:
     static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
 
     GLFWwindow *window;
+    Renderer renderer;
 
     const char *windowName;
     int windowWidth;

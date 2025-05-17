@@ -76,6 +76,9 @@ void VulkanGraphics::init(GLFWwindow *window)
         finishRenderFences[i] = vkutils::createFence(device, VK_FENCE_CREATE_SIGNALED_BIT);
     }
 
+    // depth image
+    createImage(depthImage, swapchainExtent.width, swapchainExtent.height, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_DEPTH_BIT);
+
     initImGui();
 }
 
@@ -87,6 +90,8 @@ void VulkanGraphics::shutdown()
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
     vkDestroyDescriptorPool(device, imGuiDesctiptorPool, nullptr);
+
+    destroyImage(depthImage);
 
     for (unsigned int i = 0; i < FRAMES_IN_FLIGHT; i++) {
         vkDestroySemaphore(device, acquireSemaphores[i], nullptr);
@@ -487,6 +492,10 @@ void VulkanGraphics::recreateSwapchain()
     }
     vkDestroySwapchainKHR(device, swapchain, nullptr);
 
+    destroyImage(depthImage);
+
+    createImage(depthImage, swapchainExtent.width, swapchainExtent.height, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_DEPTH_BIT);
+
     for (unsigned int i = 0; i < FRAMES_IN_FLIGHT; i++) {
         vkDestroySemaphore(device, acquireSemaphores[i], nullptr);
         vkDestroySemaphore(device, submitSemaphores[i], nullptr);
@@ -515,8 +524,7 @@ VkCommandBuffer VulkanGraphics::beginCommandBuffer()
     VkResult result = vkAcquireNextImageKHR(device, swapchain, ~0ull, acquireSemaphores[currentFrame], nullptr, &imageIndex);
     if (resizeRequested || result == VK_ERROR_OUT_OF_DATE_KHR) {
         recreateSwapchain();
-        Renderer::resizeResources();
-        beginCommandBuffer(); // is this right? probably not.
+        beginCommandBuffer(); // is this right?
     } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
         printf("Failed to acquire swapchain image.\n");
         exit(EXIT_FAILURE);
@@ -565,7 +573,6 @@ void VulkanGraphics::submitCommandBuffer(VkCommandBuffer cmd)
     VkResult result = vkQueuePresentKHR(queue, &presentInfo);
     if (resizeRequested || result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
         recreateSwapchain();
-        Renderer::resizeResources();
     }
 
     currentFrame = (currentFrame + 1) % FRAMES_IN_FLIGHT;
@@ -795,7 +802,6 @@ void VulkanGraphics::uploadBuffer(Buffer &buffer, void *data, VkDeviceSize size)
     submit.pCommandBuffers = &copyCmd;
 
     VK_CHECK(vkQueueSubmit(queue, 1, &submit, nullptr));
-
     VK_CHECK(vkQueueWaitIdle(queue));
 
     destroyBuffer(staging);

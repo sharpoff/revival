@@ -78,7 +78,7 @@ void main()
     vec3 diffuseOut = vec3(0.0);
     vec3 specularOut = vec3(0.0);
 
-    vec3 color = vec3(0.0); // output color
+    vec3 color = vec3(1.0); // output color
     float shadowOut = 1.0;
 
     for (uint i = 0; i < ubo.numLights; i++) {
@@ -92,16 +92,16 @@ void main()
 
         vec4 shadowCoord = light.mvp * vec4(inWorldPos, 1.0);
         // shadowOut = calculateShadow(shadowCoord / shadowCoord.w, light.shadowMapIndex);
-        shadowCoord /= shadowCoord.w;
-        shadowCoord = shadowCoord * 0.5 + 0.5;
-        float closestDepth = TEX(light.shadowMapIndex, shadowCoord.xy).r;
-        float currentDepth = shadowCoord.z;
-        shadowOut = currentDepth > closestDepth ? 1.0 : 0.0;
-        color = vec3(currentDepth);
+        vec3 projCoords = shadowCoord.xyz / shadowCoord.w;
+        projCoords = projCoords * 0.5 + 0.5;
+        float closestDepth = TEX(light.shadowMapIndex, projCoords.xy).r;
+        float currentDepth = projCoords.z;
+        shadowOut = currentDepth > closestDepth ? 1.0 : 0.5;
+        // color = vec3(currentDepth);
     }
 
     // color = albedoOut * (diffuseOut + specularOut + emissive) * shadowOut;
-    // color = vec3(shadowOut);
+    // color = color + (1.0 - shadowOut);
 
     fragColor = vec4(color, 1.0);
 }

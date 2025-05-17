@@ -42,10 +42,11 @@ void Engine::initialize(const char *name, int width, int height, bool enableFull
         exit(EXIT_FAILURE);
     }
 
+    glfwSetWindowUserPointer(window, &renderer);
     glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
     glfwMakeContextCurrent(window);
 
-    Renderer::initialize(&camera, window);
+    renderer.initialize(&camera, window);
 
     // some settings
     camera.setPerspective(60.0f, float(width) / height, 0.1, 100.0f);
@@ -54,7 +55,7 @@ void Engine::initialize(const char *name, int width, int height, bool enableFull
 
 void Engine::shutdown()
 {
-    Renderer::shutdown();
+    renderer.shutdown();
     glfwTerminate();
 }
 
@@ -71,7 +72,7 @@ void Engine::run()
         handleInput(deltaTime);
         update(deltaTime);
 
-        Renderer::render();
+        renderer.render();
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -93,7 +94,7 @@ void Engine::handleInput(double deltaTime)
         else
             glfwSetWindowMonitor(window, glfwGetPrimaryMonitor(), 0, 0, mode->width, mode->height, mode->refreshRate);
 
-        Renderer::requestResize();
+        renderer.getGraphics().requestResize();
 
         isFullscreen = !isFullscreen;
     }
@@ -108,5 +109,6 @@ void Engine::update(double deltaTime)
 
 void Engine::framebufferResizeCallback(GLFWwindow* window, int width, int height)
 {
-    Renderer::requestResize();
+    Renderer *renderer = (Renderer*)glfwGetWindowUserPointer(window);
+    renderer->getGraphics().requestResize();
 }

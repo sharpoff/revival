@@ -69,7 +69,7 @@ void ShadowPass::shutdown(VkDevice device)
     vkDestroyDescriptorSetLayout(device, setLayout, nullptr);
 }
 
-void ShadowPass::render(VulkanGraphics &graphics, VkCommandBuffer cmd, VkBuffer indexBuffer)
+void ShadowPass::beginFrame(VulkanGraphics &graphics, VkCommandBuffer cmd, VkBuffer indexBuffer)
 {
     VkRenderingAttachmentInfo depthAttachment = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
     depthAttachment.clearValue.depthStencil = {0.0, 0};
@@ -84,20 +84,13 @@ void ShadowPass::render(VulkanGraphics &graphics, VkCommandBuffer cmd, VkBuffer 
 
     graphics.beginFrame(cmd, attachments, {shadowMapSize, shadowMapSize});
 
-    Light &light = SceneManager::getLights()[0];
-
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &set, 0, nullptr);
     vkCmdBindIndexBuffer(cmd, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+}
 
-    // TODO: add multiple scenes
-    auto scene = SceneManager::getSceneByName("shadow_test");
-    for (auto &mesh : scene.meshes) {
-        vkCmdPushConstants(cmd, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &light.mvp);
-
-        vkCmdDrawIndexed(cmd, mesh.indexCount, 1, mesh.indexOffset, 0, 0);
-    }
-
+void ShadowPass::endFrame(VulkanGraphics &graphics, VkCommandBuffer cmd)
+{
     graphics.endFrame(cmd, false);
 
     vkutils::insertImageBarrier(
@@ -106,4 +99,26 @@ void ShadowPass::render(VulkanGraphics &graphics, VkCommandBuffer cmd, VkBuffer 
         VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
         {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1});
+}
+
+void ShadowPass::render(VkCommandBuffer cmd, Scene &scene)
+{
+    Light &light = SceneManager::getLights()[0];
+
+    for (auto &mesh : scene.meshes) {
+        vkCmdPushConstants(cmd, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &light.mvp);
+        vkCmdDrawIndexed(cmd, mesh.indexCount, 1, mesh.indexOffset, 0, 0);
+    }
+}
+
+void ShadowPass::render(VkCommandBuffer cmd, GameObject &gameObject)
+{
+    if (!gameObject.scene) return;
+
+    Light &light = SceneManager::getLights()[0];
+
+    for (auto &mesh : gameObject.scene->meshes) {
+        vkCmdPushConstants(cmd, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &light.mvp);
+        vkCmdDrawIndexed(cmd, mesh.indexCount, 1, mesh.indexOffset, 0, 0);
+    }
 }

@@ -1,7 +1,8 @@
 #pragma once
 
 #include <vector>
-#include "math/math.h"
+#include <revival/math/math.h>
+#include <revival/vulkan/resources.h>
 
 struct Vertex
 {
@@ -34,7 +35,7 @@ struct Light
 
 struct Mesh
 {
-    mat4 matrix;
+    mat4 matrix = mat4(1.0f);
 
     int indexOffset;
     int indexCount;
@@ -44,7 +45,5 @@ struct Mesh
 
 struct Scene
 {
-    mat4 matrix = mat4(1.0);
-
     std::vector<Mesh> meshes;
 };

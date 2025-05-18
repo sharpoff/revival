@@ -2,6 +2,9 @@
 
 #include <revival/vulkan/common.h>
 #include <revival/vulkan/resources.h>
+#include <revival/types.h>
+
+#include <revival/game_object.h>
 
 class VulkanGraphics;
 
@@ -11,7 +14,11 @@ public:
     void init(VulkanGraphics &graphics, std::vector<Texture> &textures, Buffer &vertexBuffer);
     void shutdown(VkDevice device);
 
-    void render(VulkanGraphics &graphics, VkCommandBuffer cmd, VkBuffer indexBuffer);
+    void beginFrame(VulkanGraphics &graphics, VkCommandBuffer cmd, VkBuffer indexBuffer);
+    void endFrame(VulkanGraphics &graphics, VkCommandBuffer cmd);
+
+    void render(VkCommandBuffer cmd, Scene &scene);
+    void render(VkCommandBuffer cmd, GameObject &gameObject);
 
     Image &getShadowMap() { return shadowMap; };
     unsigned int getShadowMapIndex() { return shadowMapIndex; };

@@ -1,79 +1,113 @@
 #include <revival/physics/physics.h>
-#include <revival/physics/jolt_utils.h>
 
-PhysicsSystem::PhysicsSystem()
+#include <revival/game_manager.h>
+
+using namespace JPH;
+
+void Physics::init()
 {
     // Register allocation hook.
-    JPH::RegisterDefaultAllocator();
+    RegisterDefaultAllocator();
 
-    JPH::Factory::sInstance = new JPH::Factory();
+    Factory::sInstance = new Factory();
 
     // Register all physics types with the factory and install their collision handlers with the CollisionDispatch class.
-    JPH::RegisterTypes();
+    RegisterTypes();
 
     // We need a temp allocator for temporary allocations during the physics update. We're
     // pre-allocating 10 MB to avoid having to do allocations during the physics update.
-    tempAllocator = new JPH::TempAllocatorImpl(10 * 1024 * 1024);
+    tempAllocator = new TempAllocatorImpl(10 * 1024 * 1024);
 
     // We need a job system that will execute physics jobs on multiple threads.
-    jobSystem = new JPH::JobSystemThreadPool(JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers, JPH::thread::hardware_concurrency() - 1);
+    jobSystem = new JobSystemThreadPool(cMaxPhysicsJobs, cMaxPhysicsBarriers, thread::hardware_concurrency() - 1);
 
     physicsSystem.Init(maxBodies, numBodyMutexes, maxBodies, maxContactConstraints, broadPhaseLayerInterface, objectVsBroadPhaseLayerFilter, objectVsObjectFilter);
 
     physicsSystem.SetBodyActivationListener(&bodyActivationListener);
     physicsSystem.SetContactListener(&contactListener);
-
-    JPH::BodyInterface &bodyInterface = physicsSystem.GetBodyInterface();
-
-    // Create static floor shape
-    // JPH::BoxShapeSettings floorShapeSettings(JPH::Vec3(100.0f, 1.0f, 100.0f));
-    // JPH::ShapeSettings::ShapeResult floorShapeResult = floorShapeSettings.Create();
-    // JPH::ShapeRefC floorShape = floorShapeResult.Get();
-
-    // Create rigid body of a static floor
-    JPH::BodyCreationSettings floorSettings(new JPH::BoxShape(JPH::Vec3(100.0f, 1.0f, 100.0f)), JPH::Vec3(0.0, -1.0, 0.0), JPH::Quat::sIdentity(), JPH::EMotionType::Static, Layers::NON_MOVING);
-    floorID = bodyInterface.CreateAndAddBody(floorSettings, JPH::EActivation::DontActivate);
-
-    // Create rigid body of a dynamic sphere
-    JPH::BodyCreationSettings sphereSettings(new JPH::SphereShape(0.5f), JPH::Vec3(0.0, 50.0, 0.0), JPH::Quat::sIdentity(), JPH::EMotionType::Dynamic, Layers::MOVING);
-    sphereID = bodyInterface.CreateAndAddBody(sphereSettings, JPH::EActivation::Activate);
-
-    bodyInterface.SetLinearVelocity(sphereID, JPH::Vec3(0.0f, -5.0f, 0.0f));
 }
 
-PhysicsSystem::~PhysicsSystem()
+void Physics::shutdown()
 {
-    JPH::BodyInterface &bodyInterface = physicsSystem.GetBodyInterface();
+    BodyInterface &bodyInterface = physicsSystem.GetBodyInterface();
+    std::vector<GameObject> &gameObjects = GameManager::getGameObjects();
 
-    bodyInterface.RemoveBody(floorID);
-    bodyInterface.DestroyBody(floorID);
+    for (auto &gameObject : gameObjects) {
+        bodyInterface.RemoveBody(gameObject.rigidBody.bodyId);
+        bodyInterface.DestroyBody(gameObject.rigidBody.bodyId);
+    }
 
-    bodyInterface.RemoveBody(sphereID);
-    bodyInterface.DestroyBody(sphereID);
-
-    JPH::UnregisterTypes();
+    UnregisterTypes();
 
     delete tempAllocator;
     delete jobSystem;
 }
 
-void PhysicsSystem::update(float dt)
+void Physics::drawBodies(DebugRendererSimple *debugRenderer)
 {
-    JPH::BodyInterface &bodyInterface = physicsSystem.GetBodyInterface();
+    physicsSystem.DrawBodies(BodyManager::DrawSettings(), debugRenderer);
+}
 
-    float physicsDeltaTime = 1.0f / 60.0f;
+void Physics::createBox(RigidBody *body, Transform transform, vec3 halfExtent, bool isStatic)
+{
+    if (!body) return;
 
-    if (bodyInterface.IsActive(sphereID)) {
-        JPH::Vec3 position = bodyInterface.GetPosition(sphereID);
+    BodyInterface &bodyInterface = physicsSystem.GetBodyInterface();
 
-        printf("[PHYSICS] sphere pos: [%f, %f, %f]\n", position.GetX(), position.GetY(), position.GetZ());
+    BoxShapeSettings settings(toJolt(halfExtent));
+    settings.SetEmbedded();
 
-        physicsSystem.Update(physicsDeltaTime, 1, tempAllocator, jobSystem);
+    Shape::ShapeResult result = settings.Create();
+    if (result.IsValid()) {
+        body->shape = result.Get();
+    } else {
+        printf("[PHYSICS] Failed to create body shape.\n");
+        return;
+    }
+
+    vec3 position = transform.getPosition();
+    quat rotation = transform.getRotation();
+
+    if (isStatic) {
+        body->bodyId = bodyInterface.CreateAndAddBody(BodyCreationSettings(body->shape.GetPtr(), toJolt(position), toJolt(rotation), EMotionType::Static, Layers::NON_MOVING), EActivation::DontActivate);
+    } else {
+        body->bodyId = bodyInterface.CreateAndAddBody(BodyCreationSettings(body->shape.GetPtr(), toJolt(position), toJolt(rotation), EMotionType::Dynamic, Layers::MOVING), EActivation::Activate);
+
+        bodyInterface.SetLinearVelocity(body->bodyId, Vec3(0.0f, -5.0f, 0.0f));
     }
 }
 
-glm::vec3 PhysicsSystem::getFloorPos()
+void Physics::update(float dt)
 {
-    JPH::BodyInterface &bodyInterface = physicsSystem.GetBodyInterface();
-    return JoltUtils::toGLMVec3(bodyInterface.GetPosition(sphereID));
+    std::vector<GameObject> &gameObjects = GameManager::getGameObjects();
+
+    BodyInterface &bodyInterface = physicsSystem.GetBodyInterface();
+
+    float physicsDeltaTime = 1.0f / 60.0f;
+
+    bool isActive = false;
+    for (auto &object : gameObjects) {
+        RigidBody &rigidBody = object.rigidBody;
+
+        if (!rigidBody.isStatic && bodyInterface.IsActive(rigidBody.bodyId)) {
+            object.transform = getTransform(rigidBody.bodyId);
+
+            printf("%s - [%f, %f, %f]\n", object.name.c_str(), object.transform.getPosition().x, object.transform.getPosition().y, object.transform.getPosition().z);
+
+            isActive = true;
+        }
+    }
+
+    if (isActive)
+        physicsSystem.Update(physicsDeltaTime, 1, tempAllocator, jobSystem);
 }
+
+Transform Physics::getTransform(JPH::BodyID id)
+{
+    BodyInterface &bodyInterface = physicsSystem.GetBodyInterface();
+    vec3 position = toGlm(bodyInterface.GetPosition(id));
+    quat rotation = toGlm(bodyInterface.GetRotation(id));
+
+    return Transform(position, rotation, vec3(1.0));
+}
+

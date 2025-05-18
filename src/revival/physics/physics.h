@@ -11,20 +11,29 @@
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 
+#include <Jolt/Renderer/DebugRendererSimple.h>
+
 #include <revival/physics/physics_layers.h>
 #include <revival/physics/physics_listeners.h>
 #include <revival/math/math.h>
+#include <revival/transform.h>
 
-class PhysicsSystem
+#include <revival/physics/helpers.h>
+
+#include <revival/game_object.h>
+
+class Physics
 {
 public:
-    PhysicsSystem();
-    ~PhysicsSystem();
+    void init();
+    void shutdown();
+
+    void drawBodies(JPH::DebugRendererSimple *debugRenderer);
 
     void update(float dt);
 
-    // TEST
-    glm::vec3 getFloorPos();
+    void createBox(RigidBody *body, Transform transform, vec3 halfExtent, bool isStatic);
+    Transform getTransform(JPH::BodyID id);
 private:
     JPH::JobSystemThreadPool *jobSystem;
     JPH::TempAllocatorImpl *tempAllocator;
@@ -54,8 +63,4 @@ private:
     BodyActivationListener bodyActivationListener;
 
     ContactListener contactListener;
-
-    // test bodies
-    JPH::BodyID floorID;
-    JPH::BodyID sphereID;
 };

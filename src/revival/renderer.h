@@ -7,13 +7,17 @@
 #include <revival/shadow_debug_pass.h>
 #include <revival/scene_pass.h>
 
+#include <revival/physics/debug_renderer.h>
+
+class Physics;
+
 class Renderer
 {
 public:
-    void initialize(Camera *pCamera, GLFWwindow *pWindow);
+    void init(Camera *pCamera, GLFWwindow *pWindow);
     void shutdown();
 
-    void render();
+    void render(Physics *physics);
 
     VulkanGraphics &getGraphics() { return graphics; };
 private:
@@ -39,6 +43,9 @@ private:
     std::vector<Texture> textures;
 
     bool debugShadowMap = false;
+
+    // TODO:
+    // DebugRendererImp physicsDebugRenderer;
 
     ShadowPass shadowPass;
     ShadowDebugPass shadowDebugPass;

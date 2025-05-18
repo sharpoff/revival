@@ -8,20 +8,20 @@
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_vulkan.h"
 
-void Renderer::initialize(Camera *pCamera, GLFWwindow *pWindow)
+#include <revival/game_manager.h>
+#include <revival/physics/physics.h>
+
+void Renderer::init(Camera *pCamera, GLFWwindow *pWindow)
 {
     window = pWindow;
     camera = pCamera;
 
     graphics.init(window);
 
-    SceneManager::addLight({mat4(1.0), vec3(18.0, 19.0, 22.0), vec3(1.0)});
-
-    // load scenes
-    SceneManager::loadScene("shadow_test", "models/shadow_test.gltf");
-    // SceneManager::loadScene("sponza", "models/sponza/Sponza.gltf");
-
     createResources();
+
+    // TODO:
+    // physicsDebugRenderer.init(graphics);
 
     shadowPass.init(graphics, textures, vertexBuffer);
     shadowDebugPass.init(graphics, vertexBuffer, shadowPass.getShadowMap());
@@ -45,6 +45,9 @@ void Renderer::shutdown()
         graphics.destroyTexture(texture);
     }
 
+    // TODO:
+    // physicsDebugRenderer.shutdown(device);
+
     shadowPass.shutdown(device);
     shadowDebugPass.shutdown(device);
     scenePass.shutdown(device);
@@ -52,7 +55,7 @@ void Renderer::shutdown()
     graphics.shutdown();
 }
 
-void Renderer::render()
+void Renderer::render(Physics *physics)
 {
     updateDynamicBuffers();
 
@@ -61,29 +64,45 @@ void Renderer::render()
     //
     // Shadow Pass
     //
-    {
-        vkutils::beginDebugLabel(cmd, "Shadow", {0.3, 0.3, 0.3, 0.5});
-        shadowPass.render(graphics, cmd, indexBuffer.buffer);
-        vkutils::endDebugLabel(cmd);
-    }
+    // {
+    //     vkutils::beginDebugLabel(cmd, "Shadow", {0.3, 0.3, 0.3, 0.5});
+    //
+    //     scenePass.render(cmd, SceneManager::getSceneByName("cube"));
+    //
+    //     vkutils::endDebugLabel(cmd);
+    // }
 
     //
     // Scene Pass
     //
     {
+        // printf("%f\n", GameManager::getGameObjectByName("cube")->transform.getPosition().y);
         vkutils::beginDebugLabel(cmd, "Scenes");
-        scenePass.render(graphics, cmd, indexBuffer.buffer, &SceneManager::getSceneByName("shadow_test"), 1);
+        scenePass.beginFrame(graphics, cmd, indexBuffer.buffer);
+
+        // TODO:
+        // if (physics) {
+        //     physicsDebugRenderer.setDrawState(cmd);
+        //     // physics->drawBodies(physicsDebugRenderer);
+        // }
+
+        std::vector<GameObject> &gameObjects = GameManager::getGameObjects();
+        for (auto &object : gameObjects) {
+            scenePass.render(cmd, object);
+        }
+
+        scenePass.endFrame(graphics, cmd);
         vkutils::endDebugLabel(cmd);
     }
 
     //
     // Shadow Debug Pass (Fullscreen quad)
     //
-    if (debugShadowMap) {
-        vkutils::beginDebugLabel(cmd, "Shadow debug");
-        shadowDebugPass.render(graphics, cmd);
-        vkutils::endDebugLabel(cmd);
-    }
+    // if (debugShadowMap) {
+    //     vkutils::beginDebugLabel(cmd, "Shadow debug");
+    //     shadowDebugPass.render(graphics, cmd);
+    //     vkutils::endDebugLabel(cmd);
+    // }
 
     // Imgui Pass
     {
@@ -102,7 +121,6 @@ void Renderer::renderImgui(VkCommandBuffer cmd)
     swapchainImage.view = graphics.getSwapchainImageView();
     swapchainImage.handle = graphics.getSwapchainImage();
 
-    // TODO: implement it
     VkRenderingAttachmentInfo colorAttachment = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
     colorAttachment.clearValue.color = {{0.0, 0.0, 0.0, 1.0}};
     colorAttachment.imageView = swapchainImage.view;

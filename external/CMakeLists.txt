@@ -25,4 +25,5 @@ add_subdirectory(VulkanMemoryAllocator)
 add_subdirectory(assimp)
 
 # Jolt
+set(CPP_RTTI_ENABLED ON)
 add_subdirectory(JoltPhysics/Build)

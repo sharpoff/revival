@@ -3,7 +3,7 @@
 int main()
 {
     Engine engine;
-    engine.initialize("Game", 1280, 720, false);
+    engine.init("Game", 1280, 720, false);
 
     engine.run();
 

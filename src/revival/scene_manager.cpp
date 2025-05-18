@@ -14,12 +14,14 @@ namespace SceneManager
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
 
-    void loadScene(std::string name, std::filesystem::path path)
+    Scene &loadScene(std::string name, std::filesystem::path path)
     {
-        sceneMap[name] = loadScene(path);
+        sceneMap[name] = loadModel(path);
+
+        return sceneMap[name];
     }
 
-    Scene &loadScene(std::filesystem::path path)
+    Scene &loadModel(std::filesystem::path path)
     {
         const aiScene *aScene = aiImportFile(path.c_str(), aiProcess_Triangulate | aiProcess_OptimizeMeshes | aiProcess_FlipUVs);
 
@@ -67,7 +69,7 @@ namespace SceneManager
                 texturePaths.push_back(dir / texPath.data);
             }
 
-            addMaterial(material);
+            materials.push_back(material);
         }
 
         Scene &scene = scenes.emplace_back();
@@ -80,9 +82,9 @@ namespace SceneManager
     {
         mat4 nodeMatrix = mat4(1.0);
         if (aNode->mParent)
-            nodeMatrix = convertToMatrix4(aNode->mParent->mTransformation) * convertToMatrix4(aNode->mTransformation);
+            nodeMatrix = toGlm(aNode->mParent->mTransformation) * toGlm(aNode->mTransformation);
         else
-            nodeMatrix = convertToMatrix4(aNode->mTransformation);
+            nodeMatrix = toGlm(aNode->mTransformation);
 
         for (unsigned int i = 0; i < aNode->mNumMeshes; i++) {
             const aiMesh *aMesh = aScene->mMeshes[aNode->mMeshes[i]];
@@ -145,7 +147,7 @@ namespace SceneManager
         return mesh;
     }
 
-    mat4 convertToMatrix4(const aiMatrix4x4 &m)
+    mat4 toGlm(const aiMatrix4x4 &m)
     {
         glm::mat4 mat;
         mat[0][0] = m.a1; mat[1][0] = m.a2; mat[2][0] = m.a3; mat[3][0] = m.a4;
@@ -154,18 +156,6 @@ namespace SceneManager
         mat[0][3] = m.d1; mat[1][3] = m.d2; mat[2][3] = m.d3; mat[3][3] = m.d4;
 
         return mat;
-    }
-
-    uint32_t addLight(Light light)
-    {
-        lights.push_back(light);
-        return lights.size() - 1;
-    }
-
-    uint32_t addMaterial(Material material)
-    {
-        materials.push_back(material);
-        return materials.size() - 1;
     }
 
     Scene &getSceneByName(std::string name)

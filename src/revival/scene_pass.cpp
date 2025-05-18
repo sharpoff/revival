@@ -92,10 +92,8 @@ void ScenePass::shutdown(VkDevice device)
     vkDestroyDescriptorSetLayout(device, setLayout, nullptr);
 }
 
-void ScenePass::render(VulkanGraphics &graphics, VkCommandBuffer cmd, VkBuffer indexBuffer, Scene *scenes, uint32_t scenesCount)
+void ScenePass::beginFrame(VulkanGraphics &graphics, VkCommandBuffer cmd, VkBuffer &indexBuffer)
 {
-    if (!scenes || scenesCount <= 0) return;
-
     Image &depthImage = graphics.getDepthImage();
 
     Image swapchainImage = {};
@@ -126,13 +124,33 @@ void ScenePass::render(VulkanGraphics &graphics, VkCommandBuffer cmd, VkBuffer i
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &set, 0, nullptr);
     vkCmdBindIndexBuffer(cmd, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+}
 
+void ScenePass::endFrame(VulkanGraphics &graphics, VkCommandBuffer cmd)
+{
+    graphics.endFrame(cmd);
+}
+
+void ScenePass::render(VkCommandBuffer cmd, Scene &scene)
+{
     PushConstant push = {};
+    for (auto &mesh : scene.meshes) {
+        push.model = mesh.matrix;
+        push.materialIndex = mesh.materialIndex;
 
-    for (uint32_t i = 0; i < scenesCount; i++) {
-        Scene &scene = scenes[i];
-        for (auto &mesh : scene.meshes) {
-            push.model = scene.matrix * mesh.matrix;
+        vkCmdPushConstants(cmd, layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(push), &push);
+
+        vkCmdDrawIndexed(cmd, mesh.indexCount, 1, mesh.indexOffset, 0, 0);
+    }
+}
+
+void ScenePass::render(VkCommandBuffer cmd, GameObject &gameObject)
+{
+    PushConstant push = {};
+    Scene *scene = gameObject.scene;
+    if (scene) {
+        for (auto &mesh : scene->meshes) {
+            push.model = gameObject.transform.getModelMatrix() * mesh.matrix;
             push.materialIndex = mesh.materialIndex;
 
             vkCmdPushConstants(cmd, layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(push), &push);
@@ -140,6 +158,4 @@ void ScenePass::render(VulkanGraphics &graphics, VkCommandBuffer cmd, VkBuffer i
             vkCmdDrawIndexed(cmd, mesh.indexCount, 1, mesh.indexOffset, 0, 0);
         }
     }
-
-    graphics.endFrame(cmd);
 }

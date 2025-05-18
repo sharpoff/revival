@@ -26,7 +26,7 @@ void ShadowDebugPass::init(VulkanGraphics &graphics, Buffer &vertexBuffer, Image
     set = vkutils::createDescriptorSet(device, pool, setLayout);
 
     DescriptorWriter writer;
-    VkDescriptorImageInfo textureInfo;
+    VkDescriptorImageInfo textureInfo = {};
     textureInfo.imageView = shadowMap.view;
     textureInfo.sampler = shadowMap.sampler;
     textureInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;

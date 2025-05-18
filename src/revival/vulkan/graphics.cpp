@@ -494,8 +494,6 @@ void VulkanGraphics::recreateSwapchain()
 
     destroyImage(depthImage);
 
-    createImage(depthImage, swapchainExtent.width, swapchainExtent.height, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_DEPTH_BIT);
-
     for (unsigned int i = 0; i < FRAMES_IN_FLIGHT; i++) {
         vkDestroySemaphore(device, acquireSemaphores[i], nullptr);
         vkDestroySemaphore(device, submitSemaphores[i], nullptr);
@@ -514,6 +512,8 @@ void VulkanGraphics::recreateSwapchain()
     vkGetSwapchainImagesKHR(device, swapchain, &imageCount, swapchainImages.data());
 
     swapchainImageViews = createSwapchainImageViews(device, swapchainImages);
+
+    createImage(depthImage, swapchainExtent.width, swapchainExtent.height, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_DEPTH_BIT);
 };
 
 VkCommandBuffer VulkanGraphics::beginCommandBuffer()

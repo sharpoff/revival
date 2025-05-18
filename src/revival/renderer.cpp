@@ -64,13 +64,18 @@ void Renderer::render(Physics *physics)
     //
     // Shadow Pass
     //
-    // {
-    //     vkutils::beginDebugLabel(cmd, "Shadow", {0.3, 0.3, 0.3, 0.5});
-    //
-    //     scenePass.render(cmd, SceneManager::getSceneByName("cube"));
-    //
-    //     vkutils::endDebugLabel(cmd);
-    // }
+    {
+        vkutils::beginDebugLabel(cmd, "Shadow", {0.3, 0.3, 0.3, 0.5});
+        shadowPass.beginFrame(graphics, cmd, indexBuffer.buffer);
+
+        std::vector<Scene> &scenes = SceneManager::getScenes();
+        for (auto &scene : scenes) {
+            scenePass.render(cmd, scene);
+        }
+
+        shadowPass.endFrame(graphics, cmd);
+        vkutils::endDebugLabel(cmd);
+    }
 
     //
     // Scene Pass
@@ -86,9 +91,14 @@ void Renderer::render(Physics *physics)
         //     // physics->drawBodies(physicsDebugRenderer);
         // }
 
-        std::vector<GameObject> &gameObjects = GameManager::getGameObjects();
-        for (auto &object : gameObjects) {
-            scenePass.render(cmd, object);
+        // std::vector<GameObject> &gameObjects = GameManager::getGameObjects();
+        // for (auto &object : gameObjects) {
+        //     scenePass.render(cmd, object);
+        // }
+
+        std::vector<Scene> &scenes = SceneManager::getScenes();
+        for (auto &scene : scenes) {
+            scenePass.render(cmd, scene);
         }
 
         scenePass.endFrame(graphics, cmd);
@@ -98,11 +108,11 @@ void Renderer::render(Physics *physics)
     //
     // Shadow Debug Pass (Fullscreen quad)
     //
-    // if (debugShadowMap) {
-    //     vkutils::beginDebugLabel(cmd, "Shadow debug");
-    //     shadowDebugPass.render(graphics, cmd);
-    //     vkutils::endDebugLabel(cmd);
-    // }
+    if (debugShadowMap) {
+        vkutils::beginDebugLabel(cmd, "Shadow debug");
+        shadowDebugPass.render(graphics, cmd);
+        vkutils::endDebugLabel(cmd);
+    }
 
     // Imgui Pass
     {
@@ -154,7 +164,6 @@ void Renderer::renderImgui(VkCommandBuffer cmd)
 
     {
         std::vector<Light> &lights = SceneManager::getLights();
-
         ImGui::Begin("Lights");
         for (size_t i = 0; i < lights.size(); i++) {
             ImGui::PushID(i);

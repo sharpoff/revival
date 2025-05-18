@@ -50,16 +50,17 @@ void Engine::init(const char *name, int width, int height, bool enableFullScreen
     glfwMakeContextCurrent(window);
 
     SceneManager::getLights().push_back({mat4(1.0), vec3(18.0, 19.0, 22.0), vec3(1.0)});
-    auto &cube = SceneManager::loadScene("cube", "models/cube.gltf");
+    SceneManager::loadScene("shadow_test", "models/shadow_test.gltf");
+    // SceneManager::loadScene("cube", "models/cube.gltf");
 
     renderer.init(&camera, window);
     physics.init();
 
     // load game objects
-    for (int i = 0; i < 20; i++) {
-        GameManager::createGameObject(physics, "cube" + std::to_string(i), &cube, Transform(vec3(0.0f, i * 20.0f, 0.0f)), vec3(1.0f), false);
-    }
-    GameManager::createGameObject(physics, "floor", nullptr, Transform(vec3(0.0f, -1.0f, 0.0f)), vec3(100.0f, 1.0f, 100.0f), true);
+    // for (int i = 0; i < 20; i++) {
+    //     GameManager::createGameObject(physics, "cube" + std::to_string(i), &SceneManager::getSceneByName("cube"), Transform(vec3(0.0f, i * 20.0f, 0.0f)), vec3(1.0f), false);
+    // }
+    // GameManager::createGameObject(physics, "floor", nullptr, Transform(vec3(0.0f, -1.0f, 0.0f)), vec3(100.0f, 1.0f, 100.0f), true);
 
     // some settings
     camera.setPerspective(60.0f, float(width) / height, 0.1, 100.0f);

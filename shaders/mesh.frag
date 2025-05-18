@@ -98,7 +98,7 @@ void main()
         // float closestDepth = TEX(light.shadowMapIndex, projCoords.xy).r;
         // float currentDepth = projCoords.z;
         // shadowOut = currentDepth > closestDepth ? 1.0 : 0.5;
-        // // color = vec3(currentDepth);
+        // color = vec3(currentDepth);
     }
 
     color = albedoOut * (diffuseOut + specularOut + emissive) * shadowOut;

@@ -1,28 +1,22 @@
 #include <revival/game_manager.h>
 
-namespace GameManager
+void GameManager::createGameObject(Physics &physics, std::string name, Scene *scene, Transform transform, vec3 halfExtent, bool isStatic)
 {
-    std::vector<GameObject> gameObjects;
-    std::unordered_map<std::string, GameObject*> gameObjectsMap;
+    GameObject &gameObject = gameObjects.emplace_back();
+    gameObject.name = name;
+    gameObject.scene = scene;
+    gameObject.transform = transform;
+    physics.createBox(&gameObject.rigidBody, transform, halfExtent, isStatic);
 
-    void createGameObject(Physics &physics, std::string name, Scene *scene, Transform transform, vec3 halfExtent, bool isStatic)
-    {
-        GameObject &gameObject = gameObjects.emplace_back();
-        gameObject.name = name;
-        gameObject.scene = scene;
-        gameObject.transform = transform;
-        physics.createBox(&gameObject.rigidBody, transform, halfExtent, isStatic);
+    gameObjectsMap[name] = &gameObject;
+}
 
-        gameObjectsMap[name] = &gameObject;
-    }
+GameObject *GameManager::getGameObjectByName(std::string name)
+{
+    return gameObjectsMap[name];
+}
 
-    GameObject *getGameObjectByName(std::string name)
-    {
-        return gameObjectsMap[name];
-    }
-
-    std::vector<GameObject> &getGameObjects()
-    {
-        return gameObjects;
-    }
-} // namespace GameManager
+std::vector<GameObject> &GameManager::getGameObjects()
+{
+    return gameObjects;
+}

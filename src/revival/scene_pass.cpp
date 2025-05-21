@@ -104,7 +104,7 @@ void ScenePass::beginFrame(VulkanGraphics &graphics, VkCommandBuffer cmd, VkBuff
     colorAttachment.clearValue.color = {{0.0, 0.0, 0.0, 1.0}};
     colorAttachment.imageView = swapchainImage.view;
     colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
     VkRenderingAttachmentInfo depthAttachment = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
@@ -146,16 +146,15 @@ void ScenePass::render(VkCommandBuffer cmd, Scene &scene)
 
 void ScenePass::render(VkCommandBuffer cmd, GameObject &gameObject)
 {
+    if (!gameObject.scene) return;
+
     PushConstant push = {};
-    Scene *scene = gameObject.scene;
-    if (scene) {
-        for (auto &mesh : scene->meshes) {
-            push.model = gameObject.transform.getModelMatrix() * mesh.matrix;
-            push.materialIndex = mesh.materialIndex;
+    for (auto &mesh : gameObject.scene->meshes) {
+        push.model = gameObject.transform.getModelMatrix() * mesh.matrix;
+        push.materialIndex = mesh.materialIndex;
 
-            vkCmdPushConstants(cmd, layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(push), &push);
+        vkCmdPushConstants(cmd, layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(push), &push);
 
-            vkCmdDrawIndexed(cmd, mesh.indexCount, 1, mesh.indexOffset, 0, 0);
-        }
+        vkCmdDrawIndexed(cmd, mesh.indexCount, 1, mesh.indexOffset, 0, 0);
     }
 }

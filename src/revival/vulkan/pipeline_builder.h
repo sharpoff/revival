@@ -16,6 +16,7 @@ public:
     void setPolygonMode(VkPolygonMode polygonMode);
     void setCulling(VkCullModeFlags cullMode, VkFrontFace cullFace);
     void setDepthTest(bool mode);
+    void setDepthBias(bool mode);
 
     void setTopology(VkPrimitiveTopology topology);
     void setPatchControlPoints(uint32_t points);

@@ -7,6 +7,7 @@
 #include <GLFW/glfw3.h>
 #include <revival/vulkan/resources.h>
 #include <revival/vulkan/common.h>
+#include <filesystem>
 
 const int MAX_IMGUI_TEXTURES = 1000;
 const int FRAMES_IN_FLIGHT = 2;
@@ -30,7 +31,7 @@ public:
 
     // resource creation
     void createBuffer(Buffer &buffer, uint64_t size, VkBufferUsageFlags usage, VmaMemoryUsage memUsage = VMA_MEMORY_USAGE_AUTO);
-    void createImage(Image &image, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage, VkImageViewType type, VkImageAspectFlags aspect);
+    void createImage(Image &image, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage, VkImageViewType type, VkImageAspectFlags aspect, VkFilter filter = VK_FILTER_LINEAR, VkSamplerAddressMode samplerMode = VK_SAMPLER_ADDRESS_MODE_REPEAT, bool cubemap = false);
 
     void destroyBuffer(Buffer &buffer);
     void destroyImage(Image &image);
@@ -38,10 +39,11 @@ public:
 
     void uploadBuffer(Buffer &buffer, void *data, VkDeviceSize size);
 
-    VkSampler createSampler(VkFilter minFilter, VkFilter magFilter);
+    VkSampler createSampler(VkFilter minFilter, VkFilter magFilter, VkSamplerAddressMode samplerMode);
 
     void loadTextureInfo(TextureInfo &textureInfo, const char *file);
     void createTexture(Texture &texture, TextureInfo &info, VkFormat format);
+    void createTextureCubemap(Texture &texture, std::filesystem::path dir, VkFormat format);
 
     void requestResize();
 

@@ -17,8 +17,8 @@ public:
     void beginFrame(VulkanGraphics &graphics, VkCommandBuffer cmd, VkBuffer indexBuffer);
     void endFrame(VulkanGraphics &graphics, VkCommandBuffer cmd);
 
-    void render(VkCommandBuffer cmd, Scene &scene);
-    void render(VkCommandBuffer cmd, GameObject &gameObject);
+    void render(VkCommandBuffer cmd, Scene &scene, mat4 lightMVP);
+    void render(VkCommandBuffer cmd, GameObject &gameObject, mat4 lightMVP);
 
     Image &getShadowMap() { return shadowMap; };
     unsigned int getShadowMapIndex() { return shadowMapIndex; };
@@ -31,6 +31,8 @@ private:
     VkDescriptorSet set;
 
     const uint32_t shadowMapSize = 2048;
+    const float depthBiasConstant = 1.25f;
+    const float depthBiasSlope = 1.75f;
 
     Image shadowMap;
     unsigned int shadowMapIndex;

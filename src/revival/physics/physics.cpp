@@ -1,10 +1,8 @@
 #include <revival/physics/physics.h>
 
-#include <revival/game_manager.h>
-
 using namespace JPH;
 
-void Physics::init()
+bool Physics::init()
 {
     // Register allocation hook.
     RegisterDefaultAllocator();
@@ -25,12 +23,15 @@ void Physics::init()
 
     physicsSystem.SetBodyActivationListener(&bodyActivationListener);
     physicsSystem.SetContactListener(&contactListener);
+
+    printf("Successfully initialized physics.\n");
+
+    return true;
 }
 
-void Physics::shutdown()
+void Physics::shutdown(std::vector<GameObject> &gameObjects)
 {
     BodyInterface &bodyInterface = physicsSystem.GetBodyInterface();
-    std::vector<GameObject> &gameObjects = GameManager::getGameObjects();
 
     for (auto &gameObject : gameObjects) {
         bodyInterface.RemoveBody(gameObject.rigidBody.bodyId);
@@ -43,10 +44,10 @@ void Physics::shutdown()
     delete jobSystem;
 }
 
-void Physics::drawBodies(DebugRendererSimple *debugRenderer)
-{
-    physicsSystem.DrawBodies(BodyManager::DrawSettings(), debugRenderer);
-}
+// void Physics::drawBodies(DebugRendererSimple *debugRenderer)
+// {
+//     physicsSystem.DrawBodies(BodyManager::DrawSettings(), debugRenderer);
+// }
 
 void Physics::createBox(RigidBody *body, Transform transform, vec3 halfExtent, bool isStatic)
 {
@@ -77,10 +78,8 @@ void Physics::createBox(RigidBody *body, Transform transform, vec3 halfExtent, b
     }
 }
 
-void Physics::update(float dt)
+void Physics::update(float dt, std::vector<GameObject> &gameObjects)
 {
-    std::vector<GameObject> &gameObjects = GameManager::getGameObjects();
-
     BodyInterface &bodyInterface = physicsSystem.GetBodyInterface();
 
     float physicsDeltaTime = 1.0f / 60.0f;
@@ -110,4 +109,3 @@ Transform Physics::getTransform(JPH::BodyID id)
 
     return Transform(position, rotation, vec3(1.0));
 }
-

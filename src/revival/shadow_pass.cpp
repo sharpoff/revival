@@ -12,7 +12,7 @@ void ShadowPass::init(VulkanGraphics &graphics, std::vector<Texture> &textures, 
     //
     // Create resources
     //
-    graphics.createImage(shadowMap, shadowMapSize, shadowMapSize, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_DEPTH_BIT);
+    graphics.createImage(shadowMap, shadowMapSize, shadowMapSize, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_DEPTH_BIT, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER);
 
     // HACK: pushing image into textures to get it from shader as a shadowmap(texture) index
     textures.push_back({shadowMap});
@@ -53,7 +53,8 @@ void ShadowPass::init(VulkanGraphics &graphics, std::vector<Texture> &textures, 
     builder.setPipelineLayout(layout);
     builder.setShader(vertex, VK_SHADER_STAGE_VERTEX_BIT);
     builder.setDepthTest(true);
-    builder.setCulling(VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+    // builder.setDepthBias(true);
+    builder.setCulling(VK_CULL_MODE_FRONT_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
     builder.setPolygonMode(VK_POLYGON_MODE_FILL);
     pipeline = builder.build(device, 0, true);
     vkutils::setDebugName(device, (uint64_t)pipeline, VK_OBJECT_TYPE_PIPELINE, "shadow pipeline");
@@ -84,6 +85,8 @@ void ShadowPass::beginFrame(VulkanGraphics &graphics, VkCommandBuffer cmd, VkBuf
 
     graphics.beginFrame(cmd, attachments, {shadowMapSize, shadowMapSize});
 
+    vkCmdSetDepthBias(cmd, depthBiasConstant, 0.0f, depthBiasSlope);
+
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &set, 0, nullptr);
     vkCmdBindIndexBuffer(cmd, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
@@ -101,24 +104,22 @@ void ShadowPass::endFrame(VulkanGraphics &graphics, VkCommandBuffer cmd)
         {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1});
 }
 
-void ShadowPass::render(VkCommandBuffer cmd, Scene &scene)
+void ShadowPass::render(VkCommandBuffer cmd, Scene &scene, mat4 lightMVP)
 {
-    Light &light = SceneManager::getLights()[0];
-
     for (auto &mesh : scene.meshes) {
-        vkCmdPushConstants(cmd, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &light.mvp);
+        mat4 mvp = lightMVP * mesh.matrix;
+        vkCmdPushConstants(cmd, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &mvp);
         vkCmdDrawIndexed(cmd, mesh.indexCount, 1, mesh.indexOffset, 0, 0);
     }
 }
 
-void ShadowPass::render(VkCommandBuffer cmd, GameObject &gameObject)
+void ShadowPass::render(VkCommandBuffer cmd, GameObject &gameObject, mat4 lightMVP)
 {
     if (!gameObject.scene) return;
 
-    Light &light = SceneManager::getLights()[0];
-
+    lightMVP *= gameObject.transform.getModelMatrix();
     for (auto &mesh : gameObject.scene->meshes) {
-        vkCmdPushConstants(cmd, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &light.mvp);
+        vkCmdPushConstants(cmd, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &lightMVP);
         vkCmdDrawIndexed(cmd, mesh.indexCount, 1, mesh.indexOffset, 0, 0);
     }
 }

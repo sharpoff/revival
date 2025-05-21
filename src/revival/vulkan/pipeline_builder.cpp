@@ -108,6 +108,15 @@ void PipelineBuilder::setDepthTest(bool mode)
     }
 }
 
+void PipelineBuilder::setDepthBias(bool mode)
+{
+    if (mode) {
+        rasterizationState.depthBiasEnable = VK_TRUE;
+    } else {
+        rasterizationState.depthBiasEnable = VK_FALSE;
+    }
+}
+
 void PipelineBuilder::setTopology(VkPrimitiveTopology topology)
 {
     inputAssemblyState.topology = topology;

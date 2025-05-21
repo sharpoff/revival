@@ -15,22 +15,21 @@
 
 #include <revival/physics/physics_layers.h>
 #include <revival/physics/physics_listeners.h>
+#include <revival/physics/rigid_body.h>
+#include <revival/physics/helpers.h>
 #include <revival/math/math.h>
 #include <revival/transform.h>
-
-#include <revival/physics/helpers.h>
-
 #include <revival/game_object.h>
 
 class Physics
 {
 public:
-    void init();
-    void shutdown();
+    bool init();
+    void shutdown(std::vector<GameObject> &gameObjects);
 
-    void drawBodies(JPH::DebugRendererSimple *debugRenderer);
+    // void drawBodies(JPH::DebugRendererSimple *debugRenderer);
 
-    void update(float dt);
+    void update(float dt, std::vector<GameObject> &gameObjects);
 
     void createBox(RigidBody *body, Transform transform, vec3 halfExtent, bool isStatic);
     Transform getTransform(JPH::BodyID id);

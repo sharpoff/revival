@@ -30,6 +30,7 @@ target_link_libraries(revival
     imgui
     assimp
     Jolt
+    miniaudio
 )
 
 # https://gist.github.com/evilactually/a0d191701cb48f157b05be7f74d79396

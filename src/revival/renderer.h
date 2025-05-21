@@ -3,21 +3,21 @@
 #include <revival/vulkan/graphics.h>
 #include <revival/camera.h>
 #include <revival/types.h>
+#include <revival/scene_manager.h>
 #include <revival/shadow_pass.h>
 #include <revival/shadow_debug_pass.h>
 #include <revival/scene_pass.h>
-
-#include <revival/physics/debug_renderer.h>
+#include <revival/skybox_pass.h>
 
 class Physics;
 
 class Renderer
 {
 public:
-    void init(Camera *pCamera, GLFWwindow *pWindow);
+    bool init(Camera *pCamera, GLFWwindow *pWindow, SceneManager *pSceneManager);
     void shutdown();
 
-    void render(Physics *physics);
+    void render(std::vector<GameObject> &gameObjects);
 
     VulkanGraphics &getGraphics() { return graphics; };
 private:
@@ -32,6 +32,7 @@ private:
     GLFWwindow *window;
     VulkanGraphics graphics;
     Camera *camera;
+    SceneManager *sceneManager;
 
     Buffer vertexBuffer;
     Buffer indexBuffer;
@@ -41,15 +42,14 @@ private:
     Buffer lightsBuffer;
 
     std::vector<Texture> textures;
+    Texture skybox;
 
-    bool debugShadowMap = false;
-
-    // TODO:
-    // DebugRendererImp physicsDebugRenderer;
+    bool debugLightDepth = false;
 
     ShadowPass shadowPass;
     ShadowDebugPass shadowDebugPass;
     ScenePass scenePass;
+    SkyboxPass skyboxPass;
 
     struct GlobalUBO
     {

@@ -5,20 +5,29 @@
 #include <revival/camera.h>
 #include <revival/physics/physics.h>
 
+#include <revival/scene_manager.h>
+#include <revival/game_manager.h>
+#include <revival/audio_manager.h>
+
 class Engine
 {
 public:
-    void init(const char *name, int width, int height, bool isFullscreen = true);
+    bool init(const char *name, int width, int height, bool isFullscreen = true);
     void shutdown();
     void run();
 private:
     void handleInput(double deltaTime);
     void update(double deltaTime);
+    static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
     static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
 
     GLFWwindow *window;
     Renderer renderer;
     Physics physics;
+
+    SceneManager sceneManager;
+    GameManager gameManager;
+    AudioManager audioManager;
 
     const char *windowName;
     int windowWidth;
@@ -28,4 +37,5 @@ private:
 
     bool running = false;
     bool isFullscreen = false;
+    float masterVolume = 1.0f;
 };

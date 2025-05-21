@@ -723,7 +723,7 @@ void VulkanGraphics::destroyBuffer(Buffer &buffer)
     vmaDestroyBuffer(allocator, buffer.buffer, buffer.allocation);
 }
 
-void VulkanGraphics::createImage(Image &image, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage, VkImageViewType type, VkImageAspectFlags aspect)
+void VulkanGraphics::createImage(Image &image, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage, VkImageViewType type, VkImageAspectFlags aspect, VkFilter filter, VkSamplerAddressMode samplerMode, bool cubemap)
 {
     VkImageCreateInfo imageInfo = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     imageInfo.imageType = VK_IMAGE_TYPE_2D;
@@ -731,6 +731,11 @@ void VulkanGraphics::createImage(Image &image, uint32_t width, uint32_t height, 
     imageInfo.extent = {width, height, 1};
     imageInfo.mipLevels = 1;
     imageInfo.arrayLayers = 1;
+
+    if (cubemap) {
+        imageInfo.arrayLayers = 6;
+        imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+    }
 
     imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
@@ -753,10 +758,13 @@ void VulkanGraphics::createImage(Image &image, uint32_t width, uint32_t height, 
     imageViewInfo.format = format;
     imageViewInfo.subresourceRange = {aspect, 0, 1, 0, 1};
 
+    if (cubemap)
+        imageViewInfo.subresourceRange.layerCount = 6;
+
     vkCreateImageView(device, &imageViewInfo, nullptr, &image.view);
 
     // TODO: make it configurable
-    image.sampler = createSampler(VK_FILTER_LINEAR, VK_FILTER_LINEAR);
+    image.sampler = createSampler(filter, filter, samplerMode);
 }
 
 void VulkanGraphics::destroyImage(Image &image)
@@ -801,18 +809,23 @@ void VulkanGraphics::uploadBuffer(Buffer &buffer, void *data, VkDeviceSize size)
     submit.commandBufferCount = 1;
     submit.pCommandBuffers = &copyCmd;
 
-    VK_CHECK(vkQueueSubmit(queue, 1, &submit, nullptr));
-    VK_CHECK(vkQueueWaitIdle(queue));
+    VkFence fence = vkutils::createFence(device, 0);
+    VK_CHECK(vkQueueSubmit(queue, 1, &submit, fence));
+    VK_CHECK(vkWaitForFences(device, 1, &fence, VK_TRUE, ~0L));
+    vkDestroyFence(device, fence, nullptr);
 
     destroyBuffer(staging);
 }
 
-VkSampler VulkanGraphics::createSampler(VkFilter minFilter, VkFilter magFilter)
+VkSampler VulkanGraphics::createSampler(VkFilter minFilter, VkFilter magFilter, VkSamplerAddressMode samplerMode)
 {
     // TODO: add anisotropy feature
     VkSamplerCreateInfo createInfo = {VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
     createInfo.magFilter = minFilter;
     createInfo.minFilter = magFilter;
+    createInfo.addressModeU = samplerMode;
+    createInfo.addressModeV = samplerMode;
+    createInfo.addressModeW = samplerMode;
     createInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
     createInfo.compareOp = VK_COMPARE_OP_NEVER;
     createInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
@@ -894,8 +907,93 @@ void VulkanGraphics::createTexture(Texture &texture, TextureInfo &info, VkFormat
     submit.commandBufferCount = 1;
     submit.pCommandBuffers = &copyCmd;
 
-    VK_CHECK(vkQueueSubmit(queue, 1, &submit, nullptr));
-    VK_CHECK(vkQueueWaitIdle(queue));
+    VkFence fence = vkutils::createFence(device, 0);
+    VK_CHECK(vkQueueSubmit(queue, 1, &submit, fence));
+    VK_CHECK(vkWaitForFences(device, 1, &fence, VK_TRUE, ~0L));
+    vkDestroyFence(device, fence, nullptr);
+
+    destroyBuffer(staging);
+}
+
+void VulkanGraphics::createTextureCubemap(Texture &texture, std::filesystem::path dir, VkFormat format)
+{
+    std::filesystem::path paths[6] = {"right.jpg", "left.jpg", "top.jpg", "bottom.jpg", "front.jpg", "back.jpg"};
+
+    TextureInfo infos[6];
+    for (uint32_t face = 0; face < 6; face++) {
+        auto path = dir / paths[face];
+
+        loadTextureInfo(infos[face], path.c_str());
+    }
+
+    // XXX: image sizes should be the same.
+
+    uint32_t size = infos[0].width * infos[0].height * STBI_rgb_alpha * 6;
+    uint32_t layerSize = size / 6;
+
+    createImage(texture.image, infos[0].width, infos[0].height, format, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_VIEW_TYPE_CUBE, VK_IMAGE_ASPECT_COLOR_BIT, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, true);
+
+    Buffer staging;
+    createBuffer(staging, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+
+
+    for (uint32_t face = 0; face < 6; face++) {
+        memcpy(static_cast<unsigned char*>(staging.info.pMappedData) + (layerSize * face), infos[face].pixels, layerSize);
+    }
+
+    // create temporary command buffer
+    VkCommandBuffer copyCmd;
+    VkCommandBufferAllocateInfo bufferAllocInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
+    bufferAllocInfo.commandPool = commandPool;
+    bufferAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    bufferAllocInfo.commandBufferCount = 1;
+    VK_CHECK(vkAllocateCommandBuffers(device, &bufferAllocInfo, &copyCmd));
+
+    VkCommandBufferBeginInfo cmdBegin = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+    VK_CHECK(vkBeginCommandBuffer(copyCmd, &cmdBegin));
+
+    // transition image to transfer
+    vkutils::insertImageBarrier(
+            copyCmd,
+            texture.image.handle,
+            0, VK_ACCESS_TRANSFER_WRITE_BIT,
+            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+            {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 6});
+
+    // copy
+    std::vector<VkBufferImageCopy> copyRegions;
+    for (uint32_t face = 0; face < 6; face++) {
+        VkBufferImageCopy copyRegion = {};
+        copyRegion.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, face, 1};
+        copyRegion.imageExtent = {static_cast<uint32_t>(infos[face].width), static_cast<uint32_t>(infos[face].height), 1};
+        copyRegion.bufferOffset = face * layerSize;
+        copyRegions.push_back(copyRegion);
+    }
+
+    vkCmdCopyBufferToImage(copyCmd, staging.buffer, texture.image.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, copyRegions.size(), copyRegions.data());
+
+    // transition image to fragment shader
+    vkutils::insertImageBarrier(
+            copyCmd,
+            texture.image.handle,
+            VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 6});
+
+    VK_CHECK(vkEndCommandBuffer(copyCmd));
+
+    // submit
+    VkSubmitInfo submit = {};
+    submit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit.commandBufferCount = 1;
+    submit.pCommandBuffers = &copyCmd;
+
+    VkFence fence = vkutils::createFence(device, 0);
+    VK_CHECK(vkQueueSubmit(queue, 1, &submit, fence));
+    VK_CHECK(vkWaitForFences(device, 1, &fence, VK_TRUE, ~0L));
+    vkDestroyFence(device, fence, nullptr);
 
     destroyBuffer(staging);
 }

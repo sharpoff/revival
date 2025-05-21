@@ -3,10 +3,7 @@
 #include <stdio.h>
 #include <time.h>
 
-#include <revival/scene_manager.h>
-#include <revival/game_manager.h>
-
-void Engine::init(const char *name, int width, int height, bool enableFullScreen)
+bool Engine::init(const char *name, int width, int height, bool enableFullScreen)
 {
     windowName = name;
     windowWidth = width;
@@ -45,31 +42,49 @@ void Engine::init(const char *name, int width, int height, bool enableFullScreen
         exit(EXIT_FAILURE);
     }
 
-    glfwSetWindowUserPointer(window, &renderer);
+    glfwSetWindowUserPointer(window, this);
     glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
+    glfwSetKeyCallback(window, keyCallback);
     glfwMakeContextCurrent(window);
 
-    SceneManager::getLights().push_back({mat4(1.0), vec3(18.0, 19.0, 22.0), vec3(1.0)});
-    SceneManager::loadScene("shadow_test", "models/shadow_test.gltf");
-    // SceneManager::loadScene("cube", "models/cube.gltf");
+    sceneManager.getLights().push_back({mat4(1.0), vec3(18.0, 19.0, 22.0), vec3(1.0)});
+    sceneManager.loadScene("shadow_test", "models/shadow_test.gltf");
+    sceneManager.loadScene("cube", "models/cube.gltf");
+    sceneManager.loadScene("plane", "models/plane.gltf");
 
-    renderer.init(&camera, window);
-    physics.init();
+    if (!renderer.init(&camera, window, &sceneManager)) {
+        printf("Failed to initialize renderer.\n");
+        return false;
+    }
+
+    if (!physics.init()) {
+        printf("Failed to initialize physics.\n");
+        return false;
+    }
+
+    if (!audioManager.init()) {
+        printf("Failed to initialize audio.\n");
+        return false;
+    }
 
     // load game objects
-    // for (int i = 0; i < 20; i++) {
-    //     GameManager::createGameObject(physics, "cube" + std::to_string(i), &SceneManager::getSceneByName("cube"), Transform(vec3(0.0f, i * 20.0f, 0.0f)), vec3(1.0f), false);
-    // }
-    // GameManager::createGameObject(physics, "floor", nullptr, Transform(vec3(0.0f, -1.0f, 0.0f)), vec3(100.0f, 1.0f, 100.0f), true);
+    for (int i = 0; i < 20; i++) {
+        gameManager.createGameObject(physics, "cube" + std::to_string(i), &sceneManager.getSceneByName("cube"), Transform(vec3(0.0f, i * 20.0f, 0.0f)), vec3(1.0f), false);
+    }
+
+    gameManager.createGameObject(physics, "floor", &sceneManager.getSceneByName("plane"), Transform(vec3(0.0f, -1.0f, 0.0f), quat(1, 0, 0, 0), vec3(10.0f, 1.0f, 10.0f)), vec3(10.0f, 0.1f, 10.0f), true);
 
     // some settings
     camera.setPerspective(60.0f, float(width) / height, 0.1, 100.0f);
     camera.setPosition(vec3(0.0, 2.0, 3.0));
+
+    return true;
 }
 
 void Engine::shutdown()
 {
-    physics.shutdown();
+    audioManager.shutdown();
+    physics.shutdown(gameManager.getGameObjects());
     renderer.shutdown();
 
     glfwTerminate();
@@ -78,6 +93,10 @@ void Engine::shutdown()
 void Engine::run()
 {
     double previousTime = glfwGetTime();
+
+    // TEST audio
+    // audioManager.playSound("audio/sunny_pierce.mp3");
+    audioManager.playSound("audio/doom.mp3");
 
     running = true;
     while (!glfwWindowShouldClose(window) && running)
@@ -88,7 +107,7 @@ void Engine::run()
         handleInput(deltaTime);
         update(deltaTime);
 
-        renderer.render(&physics);
+        renderer.render(gameManager.getGameObjects());
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -102,30 +121,40 @@ void Engine::handleInput(double deltaTime)
         running = false;
     }
 
-    // fullscreen mode
-    if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS) {
-        const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
-        if (isFullscreen)
-            glfwSetWindowMonitor(window, NULL, 0, 0, windowWidth, windowHeight, mode->refreshRate);
-        else
-            glfwSetWindowMonitor(window, glfwGetPrimaryMonitor(), 0, 0, mode->width, mode->height, mode->refreshRate);
-
-        renderer.getGraphics().requestResize();
-
-        isFullscreen = !isFullscreen;
-    }
-
     camera.handleInput(window, deltaTime);
 }
 
 void Engine::update(double deltaTime)
 {
-    physics.update(deltaTime);
+    physics.update(deltaTime, gameManager.getGameObjects());
     camera.update(deltaTime);
+}
+
+void Engine::keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    Engine *engine = (Engine*)glfwGetWindowUserPointer(window);
+
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+        engine->gameManager.createGameObject(engine->physics, "cube", &engine->sceneManager.getSceneByName("cube"), Transform(vec3(0.0f, 50.0f, 0.0f)), vec3(1.0f), false);
+    }
+
+    // fullscreen mode
+    if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS) {
+        const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+        if (engine->isFullscreen)
+            glfwSetWindowMonitor(window, NULL, 0, 0, engine->windowWidth, engine->windowHeight, mode->refreshRate);
+        else
+            glfwSetWindowMonitor(window, glfwGetPrimaryMonitor(), 0, 0, mode->width, mode->height, mode->refreshRate);
+
+        engine->renderer.getGraphics().requestResize();
+
+        engine->isFullscreen = !engine->isFullscreen;
+    }
+
 }
 
 void Engine::framebufferResizeCallback(GLFWwindow* window, int width, int height)
 {
-    Renderer *renderer = (Renderer*)glfwGetWindowUserPointer(window);
-    renderer->getGraphics().requestResize();
+    Engine *engine = (Engine*)glfwGetWindowUserPointer(window);
+    engine->renderer.getGraphics().requestResize();
 }

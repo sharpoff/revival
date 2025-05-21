@@ -3,7 +3,10 @@
 int main()
 {
     Engine engine;
-    engine.init("Game", 1280, 720, false);
+    if (!engine.init("Game", 1280, 720, false)) {
+        printf("Failed to initialize engine.\n");
+        return EXIT_FAILURE;
+    }
 
     engine.run();
 

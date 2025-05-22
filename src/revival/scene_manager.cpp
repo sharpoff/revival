@@ -1,6 +1,8 @@
 #include <revival/scene_manager.h>
 #include <revival/fs.h>
 
+#include <revival/vulkan/graphics.h>
+
 Scene &SceneManager::loadScene(std::string name, std::filesystem::path path)
 {
     sceneMap[name] = loadModel(path);
@@ -143,4 +145,48 @@ mat4 SceneManager::toGlm(const aiMatrix4x4 &m)
     mat[0][3] = m.d1; mat[1][3] = m.d2; mat[2][3] = m.d3; mat[3][3] = m.d4;
 
     return mat;
+}
+
+uint32_t SceneManager::addTexture(VulkanGraphics &graphics, std::string filename)
+{
+    uint32_t index = textures.size();
+    Texture &texture = textures.emplace_back();
+
+    TextureInfo info;
+    graphics.loadTextureInfo(info, filename.c_str());
+    graphics.createTexture(texture, info, VK_FORMAT_R8G8B8A8_SRGB);
+    textureMap[filename] = index;
+
+    return index;
+}
+
+uint32_t SceneManager::getTextureIndexByFilename(std::string filename)
+{
+    return textureMap[filename];
+}
+
+Texture &SceneManager::getTextureByIndex(uint32_t index)
+{
+    return textures[index];
+}
+
+uint32_t SceneManager::addMaterial(Material material)
+{
+    uint32_t index = materials.size();
+    materials.push_back(material);
+    return index;
+}
+
+uint32_t SceneManager::addLight(Light light)
+{
+    uint32_t index = lights.size();
+    lights.push_back(light);
+    return index;
+}
+
+uint32_t SceneManager::addBillboard(Billboard billboard)
+{
+    uint32_t index = billboards.size();
+    billboards.push_back(billboard);
+    return index;
 }

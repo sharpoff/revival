@@ -4,22 +4,24 @@
 #include <revival/camera.h>
 #include <revival/types.h>
 #include <revival/scene_manager.h>
+#include <revival/game_manager.h>
+#include <revival/globals.h>
+
 #include <revival/passes/shadow_pass.h>
 #include <revival/passes/shadow_debug_pass.h>
 #include <revival/passes/scene_pass.h>
 #include <revival/passes/skybox_pass.h>
 #include <revival/passes/billboard_pass.h>
-#include <revival/globals.h>
 
 class Physics;
 
 class Renderer
 {
 public:
-    bool init(GLFWwindow *pWindow, Camera *pCamera, SceneManager *pSceneManager, Globals *pGlobals);
+    bool init(GLFWwindow *pWindow, Camera *pCamera, SceneManager *pSceneManager, GameManager *pGameManager, Globals *pGlobals);
     void shutdown();
 
-    void render(std::vector<GameObject> &gameObjects);
+    void render();
 
     VulkanGraphics &getGraphics() { return graphics; };
 private:
@@ -28,14 +30,11 @@ private:
     void updateDynamicBuffers();
     void createResources();
 
-    uint32_t addTexture(std::string filename);
-    uint32_t getTextureIndexByFilename(std::string filename);
-    Texture &getTextureByIndex(uint32_t index);
-
     GLFWwindow *window;
     VulkanGraphics graphics;
     Camera *camera;
     SceneManager *sceneManager;
+    GameManager *gameManager;
     Globals *globals;
 
     Buffer vertexBuffer;
@@ -45,8 +44,6 @@ private:
     Buffer materialsBuffer;
     Buffer lightsBuffer;
 
-    std::vector<Texture> textures;
-    std::unordered_map<std::string, uint32_t> textureMap; // index into textures vector
     Texture skybox;
 
     bool debugLightDepth = false;

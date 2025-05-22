@@ -67,7 +67,8 @@ void BillboardPass::init(VulkanGraphics &graphics, std::vector<Texture> &texture
     vkutils::setDebugName(device, (uint64_t)fragment, VK_OBJECT_TYPE_SHADER_MODULE, "billboard.frag");
 
     // create pipeline layout
-    layout = vkutils::createPipelineLayout(device, &setLayout, nullptr);
+    VkPushConstantRange pushConstant = {VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstant)};
+    layout = vkutils::createPipelineLayout(device, &setLayout, &pushConstant);
 
     // create pipeline
     PipelineBuilder builder;
@@ -97,8 +98,15 @@ void BillboardPass::shutdown(VulkanGraphics &graphics, VkDevice device)
     vkDestroyDescriptorSetLayout(device, setLayout, nullptr);
 }
 
-void BillboardPass::beginFrame(VulkanGraphics &graphics, VkCommandBuffer cmd)
+void BillboardPass::beginFrame(VulkanGraphics &graphics, VkCommandBuffer cmd, Camera &camera)
 {
+    // update ubo
+    UBO ubo;
+    ubo.viewProj = camera.getProjection() * camera.getView();
+    ubo.cameraRight = camera.getRight();
+    ubo.cameraUp = camera.getUp();
+    memcpy(uboBuffer.info.pMappedData, &ubo, sizeof(ubo));
+
     Image swapchainImage = {};
     swapchainImage.view = graphics.getSwapchainImageView();
     swapchainImage.handle = graphics.getSwapchainImage();
@@ -128,16 +136,13 @@ void BillboardPass::endFrame(VulkanGraphics &graphics, VkCommandBuffer cmd)
     graphics.endFrame(cmd);
 }
 
-void BillboardPass::render(VkCommandBuffer cmd, VkDevice device, Camera &camera, vec3 center, vec2 size, int textureIndex)
+void BillboardPass::render(VkCommandBuffer cmd, VkDevice device, vec3 center, vec2 size, int textureIndex)
 {
-    UBO ubo;
-    ubo.viewProj = camera.getProjection() * camera.getView();
-    ubo.center = center;
-    ubo.size = size;
-    ubo.cameraRight = camera.getRight();
-    ubo.cameraUp = camera.getUp();
-    ubo.textureIndex = textureIndex;
-    memcpy(uboBuffer.info.pMappedData, &ubo, sizeof(ubo));
+    PushConstant push = {};
+    push.center = center;
+    push.size = size;
+    push.textureIndex = textureIndex;
+    vkCmdPushConstants(cmd, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(push), &push);
 
     vkCmdDraw(cmd, 6, 1, 0, 0);
 }

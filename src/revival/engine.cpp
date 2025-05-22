@@ -47,13 +47,17 @@ bool Engine::init(const char *name, int width, int height, bool enableFullScreen
     glfwSetKeyCallback(window, keyCallback);
     glfwMakeContextCurrent(window);
 
-    sceneManager.getLights().push_back({mat4(1.0), vec3(18.0, 19.0, 22.0), vec3(1.0)});
+    sceneManager.addLight({mat4(1.0), vec3(18.0, 19.0, 22.0), vec3(1.0)});
+
+    for (int i = 0; i < 10; i++) {
+        sceneManager.addBillboard({vec3(-30.0f + 10.0f * i, 10.0f * i, -20.0f), -1, vec2(2.0f)});
+    }
 
     sceneManager.loadScene("shadow_test", "models/shadow_test.gltf");
     sceneManager.loadScene("cube", "models/cube.gltf");
     sceneManager.loadScene("plane", "models/plane.gltf");
 
-    if (!renderer.init(window, &camera, &sceneManager, &globals)) {
+    if (!renderer.init(window, &camera, &sceneManager, &gameManager, &globals)) {
         printf("Failed to initialize renderer.\n");
         return false;
     }
@@ -107,7 +111,7 @@ void Engine::run()
 
         update(deltaTime);
 
-        renderer.render(gameManager.getGameObjects());
+        renderer.render();
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -116,6 +120,17 @@ void Engine::run()
 
 void Engine::update(double deltaTime)
 {
+    // snap billboard position to light position
+    // sceneManager.getBillboardByIndex(0).position = sceneManager.getLightByIndex(0).position;
+
+    // MAKE THEM FOLLOW YOU!!!
+    auto &billboards = sceneManager.getBillboards();
+    for (auto &billboard : billboards) {
+        float movespeed = float(deltaTime) * 5.0f;
+        vec3 dir = glm::normalize(camera.getPosition() - billboard.position);
+        billboard.position += dir * movespeed;
+    }
+
     physics.update(deltaTime, gameManager.getGameObjects());
     camera.update(window, deltaTime);
 }

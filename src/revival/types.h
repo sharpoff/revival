@@ -47,3 +47,10 @@ struct Scene
 {
     std::vector<Mesh> meshes;
 };
+
+struct Billboard
+{
+    vec3 position = vec3(0.0f);
+    int textureIndex = -1;
+    vec2 size = vec2(1.0f);
+};

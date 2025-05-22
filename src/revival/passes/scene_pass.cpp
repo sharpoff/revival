@@ -1,4 +1,4 @@
-#include <revival/scene_pass.h>
+#include <revival/passes/scene_pass.h>
 #include <revival/vulkan/utils.h>
 #include <revival/vulkan/graphics.h>
 #include <revival/scene_manager.h>
@@ -30,7 +30,7 @@ void ScenePass::init(VulkanGraphics &graphics, std::vector<Texture> &textures, B
         {4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, static_cast<uint32_t>(texturesSize), VK_SHADER_STAGE_FRAGMENT_BIT}, // textures
     };
 
-    setLayout = vkutils::createDescriptorSetLayout(device, bindings);
+    setLayout = vkutils::createDescriptorSetLayout(device, bindings.data(), bindings.size(), nullptr);
     set = vkutils::createDescriptorSet(device, pool, setLayout);
 
     DescriptorWriter writer;
@@ -67,7 +67,7 @@ void ScenePass::init(VulkanGraphics &graphics, std::vector<Texture> &textures, B
 
     // create pipeline layout
     VkPushConstantRange pushConstant = {VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstant)};
-    layout = vkutils::createPipelineLayout(device, setLayout, pushConstant);
+    layout = vkutils::createPipelineLayout(device, &setLayout, &pushConstant);
 
     // create pipeline
     PipelineBuilder builder;

@@ -8,6 +8,7 @@
 #include <revival/scene_manager.h>
 #include <revival/game_manager.h>
 #include <revival/audio_manager.h>
+#include <revival/globals.h>
 
 class Engine
 {
@@ -16,7 +17,6 @@ public:
     void shutdown();
     void run();
 private:
-    void handleInput(double deltaTime);
     void update(double deltaTime);
     static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
     static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
@@ -35,7 +35,8 @@ private:
 
     Camera camera;
 
+    Globals globals;
+
     bool running = false;
     bool isFullscreen = false;
-    float masterVolume = 1.0f;
 };

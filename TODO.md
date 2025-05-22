@@ -1,6 +1,6 @@
 * Shadowmap
 * Skeleton animations
-* Ocean (Tessendorf)
+* Ocean? (Tessendorf)
 * Font text rendering (e.g. using FreeType library)
 * First person character and camera with head bobbing effect
 * Foliage

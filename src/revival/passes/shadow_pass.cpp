@@ -1,22 +1,28 @@
-#include <revival/shadow_pass.h>
+#include <revival/passes/shadow_pass.h>
 #include <revival/vulkan/utils.h>
 #include <revival/vulkan/graphics.h>
 #include <revival/scene_manager.h>
 #include <revival/vulkan/pipeline_builder.h>
 #include <revival/vulkan/descriptor_writer.h>
 
-void ShadowPass::init(VulkanGraphics &graphics, std::vector<Texture> &textures, Buffer &vertexBuffer)
+void ShadowPass::init(VulkanGraphics &graphics, std::vector<Texture> &textures, std::vector<Light> &lights, Buffer &vertexBuffer)
 {
     VkDevice device = graphics.getDevice();
 
     //
     // Create resources
     //
-    graphics.createImage(shadowMap, shadowMapSize, shadowMapSize, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_DEPTH_BIT, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER);
 
-    // HACK: pushing image into textures to get it from shader as a shadowmap(texture) index
-    textures.push_back({shadowMap});
-    shadowMapIndex = textures.size() - 1;
+    // create shadow map for every light
+    for (auto &light : lights) {
+        uint32_t shadowMapIndex = textures.size();
+        Texture &shadowMap = textures.emplace_back();
+
+        graphics.createImage(shadowMap.image, shadowMapSize, shadowMapSize, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_DEPTH_BIT, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER);
+
+        light.shadowMapIndex = shadowMapIndex;
+        shadowMaps.push_back(shadowMap.image);
+    }
 
     //
     // Descriptor set
@@ -25,13 +31,14 @@ void ShadowPass::init(VulkanGraphics &graphics, std::vector<Texture> &textures, 
         {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1}, // vertices
     };
 
-    pool = vkutils::createDescriptorPool(device, poolSizes);
+    pool = vkutils::createDescriptorPool(device, poolSizes, VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT);
 
     std::vector<VkDescriptorSetLayoutBinding> bindings = {
         {0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT}, // vertices
     };
+    VkDescriptorBindingFlags bindingFlags = VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
 
-    setLayout = vkutils::createDescriptorSetLayout(device, bindings);
+    setLayout = vkutils::createDescriptorSetLayout(device, bindings.data(), bindings.size(), &bindingFlags);
     set = vkutils::createDescriptorSet(device, pool, setLayout);
 
     DescriptorWriter writer;
@@ -46,7 +53,7 @@ void ShadowPass::init(VulkanGraphics &graphics, std::vector<Texture> &textures, 
 
     // create pipeline layout
     VkPushConstantRange pushConstant = {VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4)};
-    layout = vkutils::createPipelineLayout(device, setLayout, pushConstant);
+    layout = vkutils::createPipelineLayout(device, &setLayout, &pushConstant);
 
     // create pipeline
     PipelineBuilder builder;
@@ -70,8 +77,10 @@ void ShadowPass::shutdown(VkDevice device)
     vkDestroyDescriptorSetLayout(device, setLayout, nullptr);
 }
 
-void ShadowPass::beginFrame(VulkanGraphics &graphics, VkCommandBuffer cmd, VkBuffer indexBuffer)
+void ShadowPass::beginFrame(VulkanGraphics &graphics, VkCommandBuffer cmd, VkBuffer indexBuffer, uint32_t lightIndex)
 {
+    Image &shadowMap = shadowMaps[lightIndex];
+
     VkRenderingAttachmentInfo depthAttachment = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
     depthAttachment.clearValue.depthStencil = {0.0, 0};
     depthAttachment.imageView = shadowMap.view;
@@ -92,8 +101,10 @@ void ShadowPass::beginFrame(VulkanGraphics &graphics, VkCommandBuffer cmd, VkBuf
     vkCmdBindIndexBuffer(cmd, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 }
 
-void ShadowPass::endFrame(VulkanGraphics &graphics, VkCommandBuffer cmd)
+void ShadowPass::endFrame(VulkanGraphics &graphics, VkCommandBuffer cmd, uint32_t lightIndex)
 {
+    Image &shadowMap = shadowMaps[lightIndex];
+
     graphics.endFrame(cmd, false);
 
     vkutils::insertImageBarrier(

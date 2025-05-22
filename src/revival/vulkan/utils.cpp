@@ -46,12 +46,21 @@ namespace vkutils
         );
     }
 
-    VkDescriptorSetLayout createDescriptorSetLayout(VkDevice device, std::vector<VkDescriptorSetLayoutBinding> &bindings)
+    VkDescriptorSetLayout createDescriptorSetLayout(VkDevice device, VkDescriptorSetLayoutBinding *bindings, uint32_t bindingCount, VkDescriptorBindingFlags *bindingFlags)
     {
-        VkDescriptorSetLayout layout;
         VkDescriptorSetLayoutCreateInfo layoutCI = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
-        layoutCI.bindingCount = static_cast<uint32_t>(bindings.size());
-        layoutCI.pBindings = bindings.data();
+        layoutCI.bindingCount = bindingCount;
+        layoutCI.pBindings = bindings;
+
+        VkDescriptorSetLayoutBindingFlagsCreateInfo flagsCI = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO};
+        if (bindingFlags) {
+            flagsCI.pBindingFlags = bindingFlags;
+            flagsCI.bindingCount = bindingCount;
+            layoutCI.pNext = &flagsCI;
+            layoutCI.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
+        }
+
+        VkDescriptorSetLayout layout;
         VK_CHECK(vkCreateDescriptorSetLayout(device, &layoutCI, nullptr, &layout));
 
         return layout;
@@ -69,10 +78,10 @@ namespace vkutils
         return set;
     }
 
-    VkDescriptorPool createDescriptorPool(VkDevice device, std::vector<VkDescriptorPoolSize> &poolSizes)
+    VkDescriptorPool createDescriptorPool(VkDevice device, std::vector<VkDescriptorPoolSize> &poolSizes, VkDescriptorPoolCreateFlags flags)
     {
         VkDescriptorPoolCreateInfo createInfo = {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
-        createInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+        createInfo.flags = flags;
         createInfo.maxSets = 0;
         for (auto &poolSize : poolSizes) {
             createInfo.maxSets += poolSize.descriptorCount;
@@ -132,35 +141,17 @@ namespace vkutils
         vkUpdateDescriptorSets(device, 1, &write, 0, 0);
     }
 
-    VkPipelineLayout createPipelineLayout(VkDevice device, VkPushConstantRange pushConstant)
+    VkPipelineLayout createPipelineLayout(VkDevice device, VkDescriptorSetLayout *setLayout, VkPushConstantRange *pushConstant)
     {
         VkPipelineLayoutCreateInfo layoutInfo = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
-        layoutInfo.pushConstantRangeCount = 1;
-        layoutInfo.pPushConstantRanges = &pushConstant;
-
-        VkPipelineLayout layout;
-        vkCreatePipelineLayout(device, &layoutInfo, nullptr, &layout);
-        return layout;
-    }
-
-    VkPipelineLayout createPipelineLayout(VkDevice device, VkDescriptorSetLayout setLayout)
-    {
-        VkPipelineLayoutCreateInfo layoutInfo = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
-        layoutInfo.setLayoutCount = 1;
-        layoutInfo.pSetLayouts = &setLayout;
-
-        VkPipelineLayout layout;
-        vkCreatePipelineLayout(device, &layoutInfo, nullptr, &layout);
-        return layout;
-    }
-
-    VkPipelineLayout createPipelineLayout(VkDevice device, VkDescriptorSetLayout setLayout, VkPushConstantRange pushConstant)
-    {
-        VkPipelineLayoutCreateInfo layoutInfo = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
-        layoutInfo.setLayoutCount = 1;
-        layoutInfo.pSetLayouts = &setLayout;
-        layoutInfo.pushConstantRangeCount = 1;
-        layoutInfo.pPushConstantRanges = &pushConstant;
+        if (setLayout) {
+            layoutInfo.setLayoutCount = 1;
+            layoutInfo.pSetLayouts = setLayout;
+        }
+        if (pushConstant) {
+            layoutInfo.pushConstantRangeCount = 1;
+            layoutInfo.pPushConstantRanges = pushConstant;
+        }
 
         VkPipelineLayout layout;
         vkCreatePipelineLayout(device, &layoutInfo, nullptr, &layout);

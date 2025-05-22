@@ -91,7 +91,8 @@ void Physics::update(float dt, std::vector<GameObject> &gameObjects)
         if (!rigidBody.isStatic && bodyInterface.IsActive(rigidBody.bodyId)) {
             object.transform = getTransform(rigidBody.bodyId);
 
-            printf("%s - [%f, %f, %f]\n", object.name.c_str(), object.transform.getPosition().x, object.transform.getPosition().y, object.transform.getPosition().z);
+            if (enableDebugOutput)
+                printf("%s - [%f, %f, %f]\n", object.name.c_str(), object.transform.getPosition().x, object.transform.getPosition().y, object.transform.getPosition().z);
 
             isActive = true;
         }

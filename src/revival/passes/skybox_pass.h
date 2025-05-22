@@ -15,8 +15,6 @@ public:
 
     void render(VulkanGraphics &graphics, VkCommandBuffer cmd, VkBuffer &vertexBuffer, VkBuffer &indexBuffer, Camera &camera, Scene &cubeScene);
 private:
-    void updateUniformBuffers(Camera &camera);
-
     VkPipelineLayout layout;
     VkPipeline pipeline;
 

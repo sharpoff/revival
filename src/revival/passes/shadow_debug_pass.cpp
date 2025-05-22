@@ -1,11 +1,11 @@
-#include <revival/shadow_debug_pass.h>
+#include <revival/passes/shadow_debug_pass.h>
 #include <revival/vulkan/utils.h>
 #include <revival/vulkan/graphics.h>
 #include <revival/scene_manager.h>
 #include <revival/vulkan/pipeline_builder.h>
 #include <revival/vulkan/descriptor_writer.h>
 
-void ShadowDebugPass::init(VulkanGraphics &graphics, Buffer &vertexBuffer, Image &shadowMap)
+void ShadowDebugPass::init(VulkanGraphics &graphics, Buffer &vertexBuffer)
 {
     VkDevice device = graphics.getDevice();
 
@@ -22,16 +22,8 @@ void ShadowDebugPass::init(VulkanGraphics &graphics, Buffer &vertexBuffer, Image
         {0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
     };
 
-    setLayout = vkutils::createDescriptorSetLayout(device, bindings);
+    setLayout = vkutils::createDescriptorSetLayout(device, bindings.data(), bindings.size(), nullptr);
     set = vkutils::createDescriptorSet(device, pool, setLayout);
-
-    DescriptorWriter writer;
-    VkDescriptorImageInfo textureInfo = {};
-    textureInfo.imageView = shadowMap.view;
-    textureInfo.sampler = shadowMap.sampler;
-    textureInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    writer.write(0, &textureInfo, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-    writer.update(device, set);
 
     //
     // Pipeline
@@ -42,7 +34,7 @@ void ShadowDebugPass::init(VulkanGraphics &graphics, Buffer &vertexBuffer, Image
     vkutils::setDebugName(device, (uint64_t)fragment, VK_OBJECT_TYPE_SHADER_MODULE, "shadow_debug.frag");
 
     // create pipeline layout
-    layout = vkutils::createPipelineLayout(device, setLayout);
+    layout = vkutils::createPipelineLayout(device, &setLayout, nullptr);
 
     // create pipeline
     PipelineBuilder builder;
@@ -67,8 +59,17 @@ void ShadowDebugPass::shutdown(VkDevice device)
     vkDestroyDescriptorSetLayout(device, setLayout, nullptr);
 }
 
-void ShadowDebugPass::render(VulkanGraphics &graphics, VkCommandBuffer cmd)
+void ShadowDebugPass::render(VulkanGraphics &graphics, VkCommandBuffer cmd, Image &shadowMap)
 {
+    // XXX: this is not very performant, updated every render.
+    DescriptorWriter writer;
+    VkDescriptorImageInfo textureInfo = {};
+    textureInfo.imageView = shadowMap.view;
+    textureInfo.sampler = shadowMap.sampler;
+    textureInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    writer.write(0, &textureInfo, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    writer.update(graphics.getDevice(), set);
+
     Image swapchainImage = {};
     swapchainImage.view = graphics.getSwapchainImageView();
     swapchainImage.handle = graphics.getSwapchainImage();

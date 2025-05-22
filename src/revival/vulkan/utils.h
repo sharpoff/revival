@@ -12,17 +12,15 @@ namespace vkutils
     void insertImageBarrier(VkCommandBuffer cmd, VkImage image, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, VkImageSubresourceRange subresourceRange);
 
     // descriptor
-    VkDescriptorSetLayout createDescriptorSetLayout(VkDevice device, std::vector<VkDescriptorSetLayoutBinding> &bindings);
+    VkDescriptorSetLayout createDescriptorSetLayout(VkDevice device, VkDescriptorSetLayoutBinding *bindings, uint32_t bindingCount, VkDescriptorBindingFlags *bindingFlags);
     VkDescriptorSet createDescriptorSet(VkDevice device, VkDescriptorPool pool, VkDescriptorSetLayout layout);
-    VkDescriptorPool createDescriptorPool(VkDevice device, std::vector<VkDescriptorPoolSize> &poolSizes);
+    VkDescriptorPool createDescriptorPool(VkDevice device, std::vector<VkDescriptorPoolSize> &poolSizes, VkDescriptorPoolCreateFlags flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT);
     void writeBuffer(VkDevice device, VkDescriptorSet set, uint32_t binding, VkDescriptorType type, uint32_t descriptorCount, VkBuffer &buffer, VkDeviceSize size);
     void writeImage(VkDevice device, VkDescriptorSet set, uint32_t binding, VkDescriptorType type, uint32_t descriptorCount, VkImageView imageView, VkSampler sampler);
     void writeImages(VkDevice device, VkDescriptorSet set, uint32_t binding, VkDescriptorType type, std::vector<VkDescriptorImageInfo> infos);
 
     // pipeline
-    VkPipelineLayout createPipelineLayout(VkDevice device, VkPushConstantRange pushConstant);
-    VkPipelineLayout createPipelineLayout(VkDevice device, VkDescriptorSetLayout setLayout);
-    VkPipelineLayout createPipelineLayout(VkDevice device, VkDescriptorSetLayout setLayout, VkPushConstantRange pushConstant);
+    VkPipelineLayout createPipelineLayout(VkDevice device, VkDescriptorSetLayout *setLayout, VkPushConstantRange *pushConstant);
     VkShaderModule loadShaderModule(VkDevice device, const char *path);
 
     void setDebugName(VkDevice device, uint64_t objectHandle, VkObjectType objectType, const char *name);

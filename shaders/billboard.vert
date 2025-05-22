@@ -1,21 +1,26 @@
 #version 450
 
-layout (location = 0) out vec2 outUV;
-
-layout (binding = 0) uniform PushConstant
+layout (binding = 0) uniform UBO
 {
     mat4 viewProj;
     vec3 cameraUp;
     vec3 cameraRight;
     vec3 center;
     vec2 size;
-} push;
+    int textureIndex;
+} ubo;
+
+layout (location = 0) in vec3 inPos;
+layout (location = 1) in vec2 inUV;
+
+layout (location = 0) out vec2 outUV;
+layout (location = 1) out int textureIndex;
 
 void main()
 {
-    outUV = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);
-    vec2 vertPos = outUV * 2.0f + -1.0f;
+    vec3 pos = ubo.center + ubo.cameraRight * inPos.x * ubo.size.x + ubo.cameraUp * inPos.y * ubo.size.y;
 
-    // vec2 pos = 
-    // gl_Position = 
+    gl_Position = ubo.viewProj * vec4(pos, 1.0);
+    outUV = inUV;
+    textureIndex = ubo.textureIndex;
 }

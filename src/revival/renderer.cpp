@@ -10,22 +10,24 @@
 
 #include <revival/physics/physics.h>
 
-bool Renderer::init(Camera *pCamera, GLFWwindow *pWindow, SceneManager *pSceneManager)
+bool Renderer::init(GLFWwindow *pWindow, Camera *pCamera, SceneManager *pSceneManager, Globals *pGlobals)
 {
-    if (!pCamera || !pWindow || !pSceneManager) return false;
+    if (!pCamera || !pWindow || !pSceneManager || !pGlobals) return false;
 
     window = pWindow;
     camera = pCamera;
     sceneManager = pSceneManager;
+    globals = pGlobals;
 
     graphics.init(window);
 
     createResources();
 
-    shadowPass.init(graphics, textures, vertexBuffer);
-    shadowDebugPass.init(graphics, vertexBuffer, shadowPass.getShadowMap());
+    shadowPass.init(graphics, textures, sceneManager->getLights(), vertexBuffer);
+    shadowDebugPass.init(graphics, vertexBuffer);
     scenePass.init(graphics, textures, vertexBuffer, uboBuffer, materialsBuffer, lightsBuffer);
     skyboxPass.init(graphics, skybox);
+    billboardPass.init(graphics, textures);
 
     return true;
 }
@@ -43,9 +45,8 @@ void Renderer::shutdown()
     graphics.destroyBuffer(vertexBuffer);
     graphics.destroyBuffer(indexBuffer);
 
-    for (auto &texture : textures) {
+    for (auto &texture : textures)
         graphics.destroyTexture(texture);
-    }
 
     graphics.destroyTexture(skybox);
 
@@ -54,6 +55,7 @@ void Renderer::shutdown()
     shadowDebugPass.shutdown(device);
     scenePass.shutdown(device);
     skyboxPass.shutdown(graphics, device);
+    billboardPass.shutdown(graphics, device);
 
     graphics.shutdown();
 }
@@ -63,12 +65,15 @@ void Renderer::render(std::vector<GameObject> &gameObjects)
     updateDynamicBuffers();
 
     VkCommandBuffer cmd = graphics.beginCommandBuffer();
+    uint32_t scenesCount = sceneManager->getScenes().size();
 
-    // XXX: right now every pass should specify load and store ops appropriately inside a class, based on other passes. maybe it would be better to give it as a parameter?
+    // XXX: right now every pass should specify load and store ops appropriately inside the classes, based on other passes.
+    // maybe it would be better to give them as parameters?
 
     //
     // Skybox Pass
     //
+    if (scenesCount > 0)
     {
         vkutils::beginDebugLabel(cmd, "Skybox", {0.3, 0.6, 0.3, 1.0});
         skyboxPass.render(graphics, cmd, vertexBuffer.buffer, indexBuffer.buffer, *camera, sceneManager->getSceneByName("cube"));
@@ -78,9 +83,10 @@ void Renderer::render(std::vector<GameObject> &gameObjects)
     //
     // Shadow Pass
     //
+    if (scenesCount > 0)
     {
         vkutils::beginDebugLabel(cmd, "Shadow", {0.3, 0.3, 0.3, 0.5});
-        shadowPass.beginFrame(graphics, cmd, indexBuffer.buffer);
+        shadowPass.beginFrame(graphics, cmd, indexBuffer.buffer, 0);
 
         mat4 lightMVP = sceneManager->getLightByIndex(0).mvp;
 
@@ -88,15 +94,14 @@ void Renderer::render(std::vector<GameObject> &gameObjects)
             shadowPass.render(cmd, object, lightMVP);
         }
 
-        // shadowPass.render(cmd, sceneManager->getSceneByName("sponza"), lightMVP);
-
-        shadowPass.endFrame(graphics, cmd);
+        shadowPass.endFrame(graphics, cmd, 0);
         vkutils::endDebugLabel(cmd);
     }
 
     //
     // Scene Pass
     //
+    if (scenesCount > 0)
     {
         vkutils::beginDebugLabel(cmd, "Scenes");
         scenePass.beginFrame(graphics, cmd, indexBuffer.buffer);
@@ -105,9 +110,16 @@ void Renderer::render(std::vector<GameObject> &gameObjects)
             scenePass.render(cmd, object);
         }
 
-        // scenePass.render(cmd, sceneManager->getSceneByName("sponza"));
-
         scenePass.endFrame(graphics, cmd);
+        vkutils::endDebugLabel(cmd);
+    }
+
+    // Billboard Pass
+    {
+        vkutils::beginDebugLabel(cmd, "Billboards", {0.3, 0.0, 0.0, 0.5});
+        billboardPass.beginFrame(graphics, cmd);
+        billboardPass.render(cmd, graphics.getDevice(), *camera, sceneManager->getLightByIndex(0).position, vec2(1.0f), getTextureIndexByFilename("textures/cacodemon.png"));
+        billboardPass.endFrame(graphics, cmd);
         vkutils::endDebugLabel(cmd);
     }
 
@@ -116,11 +128,12 @@ void Renderer::render(std::vector<GameObject> &gameObjects)
     //
     if (debugLightDepth) {
         vkutils::beginDebugLabel(cmd, "Shadow debug");
-        shadowDebugPass.render(graphics, cmd);
+        shadowDebugPass.render(graphics, cmd, shadowPass.getShadowMapByLightIndex(0));
         vkutils::endDebugLabel(cmd);
     }
 
     // Imgui Pass
+    if (globals->showImGui)
     {
         vkutils::beginDebugLabel(cmd, "Dear ImGUI", {0.3, 0.3, 0.0, 0.5});
         renderImgui(cmd);
@@ -194,15 +207,14 @@ void Renderer::createResources()
 {
     VkDevice device = graphics.getDevice();
 
+    // TODO: add proper caching system
     // load textures from paths
     auto &texturePaths = sceneManager->getTexturePaths();
-    textures.resize(texturePaths.size());
-    for (size_t i = 0; i < textures.size(); i++) {
+    for (size_t i = 0; i < texturePaths.size(); i++) {
         printf("Loading texture: %s\n", texturePaths[i].c_str());
-        TextureInfo info;
-        graphics.loadTextureInfo(info, texturePaths[i].c_str());
-        graphics.createTexture(textures[i], info, VK_FORMAT_R8G8B8A8_SRGB);
+        addTexture(texturePaths[i]);
     }
+    addTexture("textures/cacodemon.png");
 
     // load skybox texture
     graphics.createTextureCubemap(skybox, "textures/skybox", VK_FORMAT_R8G8B8A8_SRGB);
@@ -244,9 +256,6 @@ void Renderer::updateDynamicBuffers()
         mat4 view = glm::lookAt(light.position, vec3(0.0f), vec3(0.0f, 1.0f, 0.0f));
         mat4 mvp = projection * view;
         light.mvp = mvp;
-
-        // TODO: make shadow map per light
-        light.shadowMapIndex = shadowPass.getShadowMapIndex();
     }
 
     if (lights.size() > 0)
@@ -262,4 +271,27 @@ void Renderer::updateDynamicBuffers()
 
     if (materials.size() > 0)
         memcpy(materialsBuffer.info.pMappedData, materials.data(), materialsBuffer.size);
+}
+
+uint32_t Renderer::addTexture(std::string filename)
+{
+    uint32_t index = textures.size();
+    Texture &texture = textures.emplace_back();
+
+    TextureInfo info;
+    graphics.loadTextureInfo(info, filename.c_str());
+    graphics.createTexture(texture, info, VK_FORMAT_R8G8B8A8_SRGB);
+    textureMap[filename] = index;
+
+    return index;
+}
+
+uint32_t Renderer::getTextureIndexByFilename(std::string filename)
+{
+    return textureMap[filename];
+}
+
+Texture &Renderer::getTextureByIndex(uint32_t index)
+{
+    return textures[index];
 }

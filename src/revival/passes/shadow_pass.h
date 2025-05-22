@@ -11,17 +11,16 @@ class VulkanGraphics;
 class ShadowPass
 {
 public:
-    void init(VulkanGraphics &graphics, std::vector<Texture> &textures, Buffer &vertexBuffer);
+    void init(VulkanGraphics &graphics, std::vector<Texture> &textures, std::vector<Light> &lights, Buffer &vertexBuffer);
     void shutdown(VkDevice device);
 
-    void beginFrame(VulkanGraphics &graphics, VkCommandBuffer cmd, VkBuffer indexBuffer);
-    void endFrame(VulkanGraphics &graphics, VkCommandBuffer cmd);
+    void beginFrame(VulkanGraphics &graphics, VkCommandBuffer cmd, VkBuffer indexBuffer, uint32_t shadowMapIndex);
+    void endFrame(VulkanGraphics &graphics, VkCommandBuffer cmd, uint32_t shadowMapIndex);
 
     void render(VkCommandBuffer cmd, Scene &scene, mat4 lightMVP);
     void render(VkCommandBuffer cmd, GameObject &gameObject, mat4 lightMVP);
 
-    Image &getShadowMap() { return shadowMap; };
-    unsigned int getShadowMapIndex() { return shadowMapIndex; };
+    Image &getShadowMapByLightIndex(uint32_t index) { return shadowMaps[index]; };
 private:
     VkPipelineLayout layout;
     VkPipeline pipeline;
@@ -34,6 +33,5 @@ private:
     const float depthBiasConstant = 1.25f;
     const float depthBiasSlope = 1.75f;
 
-    Image shadowMap;
-    unsigned int shadowMapIndex;
+    std::vector<Image> shadowMaps;
 };

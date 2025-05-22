@@ -318,7 +318,7 @@ VkPhysicalDevice VulkanGraphics::createPhyiscalDevice(VkInstance instance, VkSur
 
         // check features vk 1.2
         bool features12Supported = false;
-        if (features12.runtimeDescriptorArray && features12.shaderSampledImageArrayNonUniformIndexing) {
+        if (features12.runtimeDescriptorArray && features12.shaderSampledImageArrayNonUniformIndexing && features12.descriptorBindingStorageBufferUpdateAfterBind) {
             features12Supported = true;
         }
 
@@ -369,6 +369,7 @@ VkDevice VulkanGraphics::createDevice(VkInstance instance, VkSurfaceKHR surface,
     VkPhysicalDeviceVulkan12Features features12 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};
     features12.runtimeDescriptorArray = VK_TRUE;
     features12.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
+    features12.descriptorBindingStorageBufferUpdateAfterBind = VK_TRUE;
 
     // dynamic rendering features
     VkPhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeatures = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES};

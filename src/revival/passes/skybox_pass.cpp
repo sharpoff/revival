@@ -1,4 +1,4 @@
-#include <revival/skybox_pass.h>
+#include <revival/passes/skybox_pass.h>
 #include <revival/vulkan/utils.h>
 #include <revival/vulkan/graphics.h>
 #include <revival/scene_manager.h>
@@ -27,7 +27,7 @@ void SkyboxPass::init(VulkanGraphics &graphics, Texture &skybox)
         {1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT}, // skybox
     };
 
-    setLayout = vkutils::createDescriptorSetLayout(device, bindings);
+    setLayout = vkutils::createDescriptorSetLayout(device, bindings.data(), bindings.size(), nullptr);
     set = vkutils::createDescriptorSet(device, pool, setLayout);
 
     DescriptorWriter writer;
@@ -44,7 +44,7 @@ void SkyboxPass::init(VulkanGraphics &graphics, Texture &skybox)
     vkutils::setDebugName(device, (uint64_t)fragment, VK_OBJECT_TYPE_SHADER_MODULE, "skybox.frag");
 
     // create pipeline layout
-    layout = vkutils::createPipelineLayout(device, setLayout);
+    layout = vkutils::createPipelineLayout(device, &setLayout, nullptr);
 
     // create pipeline
     PipelineBuilder builder;
@@ -75,7 +75,11 @@ void SkyboxPass::shutdown(VulkanGraphics &graphics, VkDevice device)
 
 void SkyboxPass::render(VulkanGraphics &graphics, VkCommandBuffer cmd, VkBuffer &vertexBuffer, VkBuffer &indexBuffer, Camera &camera, Scene &cubeScene)
 {
-    updateUniformBuffers(camera);
+    // update ubo
+    UBO ubo = {};
+    ubo.projection = camera.getProjection();
+    ubo.view = camera.getView();
+    memcpy(uboBuffer.info.pMappedData, &ubo, sizeof(ubo));
 
     Image swapchainImage = {};
     swapchainImage.view = graphics.getSwapchainImageView();
@@ -106,12 +110,4 @@ void SkyboxPass::render(VulkanGraphics &graphics, VkCommandBuffer cmd, VkBuffer 
     }
 
     graphics.endFrame(cmd);
-}
-
-void SkyboxPass::updateUniformBuffers(Camera &camera)
-{
-    UBO ubo = {};
-    ubo.projection = camera.getProjection();
-    ubo.view = camera.getView();
-    memcpy(uboBuffer.info.pMappedData, &ubo, sizeof(ubo));
 }

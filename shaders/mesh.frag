@@ -71,39 +71,36 @@ void main()
 
     float shadowOut = 1.0;
 
-    // for (uint i = 0; i < ubo.numLights; i++) {
-    // }
+    for (uint i = 0; i < ubo.numLights; i++) {
+        Light light = lights[i];
 
-    Light light = lights[0];
+        // Lighting
+        vec3 lightDir = normalize(light.pos - inWorldPos);
+        vec3 viewDir = normalize(ubo.cameraPos - inWorldPos);
+        vec3 halfwayDir = normalize(lightDir + viewDir); // blinn-phong
 
-    // Lighting
-    vec3 lightDir = normalize(light.pos - inWorldPos);
-    vec3 viewDir = normalize(ubo.cameraPos - inWorldPos);
-    vec3 halfwayDir = normalize(lightDir + viewDir); // blinn-phong
+        diffuseOut += max(dot(normal, lightDir), 0.1) * light.color;
+        specularOut += specular * 0.5 * pow(max(dot(viewDir, halfwayDir), 0.0), 32) * light.color;
 
-    diffuseOut += max(dot(normal, lightDir), 0.1) * light.color;
-    specularOut += specular * 0.5 * pow(max(dot(viewDir, halfwayDir), 0.0), 32) * light.color;
+        // Shadow
+        vec4 lightSpace = light.mvp * vec4(inWorldPos, 1.0);
+        vec3 ambient = 0.15 * light.color;
+        vec3 projCoords = lightSpace.xyz / lightSpace.w;
 
-    // Shadow
-    vec4 lightSpace = light.mvp * vec4(inWorldPos, 1.0);
-    vec3 ambient = 0.15 * light.color;
-    vec3 projCoords = lightSpace.xyz / lightSpace.w;
+        vec2 coords = (projCoords.xy * 0.5 + 0.5);
+        float closestDepth = TEX(light.shadowMapIndex, coords).r;
+        float currentDepth = projCoords.z;
 
-    vec2 coords = (projCoords.xy * 0.5 + 0.5);
-    float closestDepth = TEX(light.shadowMapIndex, coords).r;
-    float currentDepth = projCoords.z;
+        float bias = 0.0005;
+        // float bias = max(0.05 * (dot(normal, lightDir)), 0.005);
+        float shadow = currentDepth + bias > closestDepth ? 1.0 : 0.5;
+        if (currentDepth + bias >= 1.0 && currentDepth + bias <= closestDepth)
+            shadow = 0.0;
+        
+        shadowOut *= shadow;
+    }
 
-    // float cosTheta = clamp(dot(normal, viewDir), 0, 1);
-    // float bias = 0.005 * tan(acos(cosTheta));
-    // bias = clamp(bias, 0, 0.01);
-    float bias = 0.0005;
-    float shadow = currentDepth + bias > closestDepth ? 1.0 : 0.5;
-    if (projCoords.z > 1.0)
-        shadow = 0.0;
-
-    // vec3 color = ambient * vec3(shadow);
-    vec3 color = albedoOut * (diffuseOut + specularOut + emissive) * shadow;
-    // vec3 color = vec3(shadowOut);
+    vec3 color = albedoOut * (diffuseOut + specularOut + emissive) * shadowOut;
 
     fragColor = vec4(color, 1.0);
 }

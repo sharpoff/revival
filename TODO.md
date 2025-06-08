@@ -1,4 +1,4 @@
-* Shadowmap
+* Fix and complete shadowmap
 * Skeleton animations
 * Ocean? (Tessendorf)
 * Font text rendering (e.g. using FreeType library)

@@ -2,6 +2,8 @@
 
 Game engine that i created to learn Vulkan and a bit of other topics in game engine development.
 
+![screenshot](https://github.com/user-attachments/assets/d24b85d5-8a75-40a6-b61b-038ba2b3cb31)
+
 # Features
 
 * Shadow mapping (not complete for now)

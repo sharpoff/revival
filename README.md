@@ -4,7 +4,7 @@ Game engine that i created to learn Vulkan and a bit of other topics in game eng
 
 ![screenshot](https://github.com/user-attachments/assets/d24b85d5-8a75-40a6-b61b-038ba2b3cb31)
 
-# Features
+## Features
 
 * Shadow mapping (not complete for now)
 * Blinn-Phong lighting (PBR is planned)
@@ -14,6 +14,10 @@ Game engine that i created to learn Vulkan and a bit of other topics in game eng
 * Dear ImGui
 * Simple sound playback using miniaudio library
 * VMA library integration
+
+## Building
+
+Run `build.sh` script or `cmake -B build -D CMAKE_BUILD_TYPE=Debug -D CMAKE_EXPORT_COMPILE_COMMANDS=1 -G Ninja && ninja -C build -j$(nproc)`
 
 ## Third party
 

@@ -1,7 +1,6 @@
 #include <revival/passes/shadow_debug_pass.h>
 #include <revival/vulkan/utils.h>
 #include <revival/vulkan/graphics.h>
-#include <revival/scene_manager.h>
 #include <revival/vulkan/pipeline_builder.h>
 #include <revival/vulkan/descriptor_writer.h>
 
@@ -30,6 +29,11 @@ void ShadowDebugPass::init(VulkanGraphics &graphics, Buffer &vertexBuffer)
     //
     auto vertex = vkutils::loadShaderModule(device, "build/shaders/quad.vert.spv");
     auto fragment = vkutils::loadShaderModule(device, "build/shaders/shadow_debug.frag.spv");
+    if (vertex == VK_NULL_HANDLE || fragment == VK_NULL_HANDLE) {
+        fprintf(stderr, "Failed to load shaders.\n");
+        exit(-1);
+    }
+
     vkutils::setDebugName(device, (uint64_t)vertex, VK_OBJECT_TYPE_SHADER_MODULE, "quad.vert");
     vkutils::setDebugName(device, (uint64_t)fragment, VK_OBJECT_TYPE_SHADER_MODULE, "shadow_debug.frag");
 

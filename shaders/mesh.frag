@@ -4,6 +4,7 @@
 #extension GL_GOOGLE_include_directive : enable
 
 #include "types.glsl"
+#include "light.glsl"
 
 layout (binding = 1) uniform UBO
 {
@@ -39,6 +40,13 @@ layout (location = 0) out vec4 fragColor;
 
 #define TEX(id, uv) texture(textures[nonuniformEXT(id)], uv)
 
+vec2 poissonDisk[4] = vec2[](
+    vec2(-0.94201624, -0.39906216),
+    vec2(0.94558609, -0.76890725),
+    vec2(-0.094184101, -0.92938870),
+    vec2(0.34495938, 0.29387760)
+);
+
 void main()
 {
     vec3 albedo = vec3(1.0);
@@ -65,24 +73,17 @@ void main()
             normal = TEX(material.normalTexture, inUV).rgb;
     }
 
-    vec3 albedoOut = albedo;
-    vec3 diffuseOut = vec3(0.0);
-    vec3 specularOut = vec3(0.0);
+    vec3 color = vec3(0.0);
 
-    float shadowOut = 1.0;
-
+    // TODO: check light types(directional, point, spot)
     for (uint i = 0; i < ubo.numLights; i++) {
         Light light = lights[i];
 
-        // Lighting
         vec3 lightDir = normalize(light.pos - inWorldPos);
         vec3 viewDir = normalize(ubo.cameraPos - inWorldPos);
-        vec3 halfwayDir = normalize(lightDir + viewDir); // blinn-phong
+        float NoL = dot(normal, lightDir);
 
-        diffuseOut += max(dot(normal, lightDir), 0.1) * light.color;
-        specularOut += specular * 0.5 * pow(max(dot(viewDir, halfwayDir), 0.0), 32) * light.color;
-
-        // Shadow
+        // Shadow mapping
         vec4 lightSpace = light.mvp * vec4(inWorldPos, 1.0);
         vec3 ambient = 0.15 * light.color;
         vec3 projCoords = lightSpace.xyz / lightSpace.w;
@@ -91,16 +92,25 @@ void main()
         float closestDepth = TEX(light.shadowMapIndex, coords).r;
         float currentDepth = projCoords.z;
 
-        float bias = 0.0005;
-        // float bias = max(0.05 * (dot(normal, lightDir)), 0.005);
-        float shadow = currentDepth + bias > closestDepth ? 1.0 : 0.5;
-        if (currentDepth + bias >= 1.0 && currentDepth + bias <= closestDepth)
-            shadow = 0.0;
-        
-        shadowOut *= shadow;
+        float bias = max(0.0005 * (1.0 - NoL), 0.0001);
+        // float shadow = currentDepth + bias > closestDepth ? 1.0 : 0.5;
+
+        // poisson sampling
+        float shadow = 1.0;
+        for (int i = 0; i < 4; i++) {
+            if (TEX(light.shadowMapIndex, coords + poissonDisk[i] / 700.0).r  <  currentDepth - bias) {
+                shadow-=0.2;
+            }
+        }
+
+        // Lighting
+        vec3 halfwayDir = normalize(lightDir + viewDir);
+
+        vec3 lighting = blinnPhong(albedo, normal, halfwayDir) * light.color;
+        color += lighting * (ambient + (1.0 - shadow));
     }
 
-    vec3 color = albedoOut * (diffuseOut + specularOut + emissive) * shadowOut;
+    color += emissive;
 
     fragColor = vec4(color, 1.0);
 }

@@ -41,8 +41,7 @@ public:
 
     VkSampler createSampler(VkFilter minFilter, VkFilter magFilter, VkSamplerAddressMode samplerMode);
 
-    void loadTextureInfo(TextureInfo &textureInfo, const char *file);
-    void createTexture(Texture &texture, TextureInfo &info, VkFormat format);
+    void createTexture(Texture &texture, const TextureInfo &info, VkFormat format);
     void createTextureCubemap(Texture &texture, std::filesystem::path dir, VkFormat format);
 
     void requestResize();

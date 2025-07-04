@@ -724,7 +724,9 @@ void VulkanGraphics::destroyBuffer(Buffer &buffer)
     vmaDestroyBuffer(allocator, buffer.buffer, buffer.allocation);
 }
 
-void VulkanGraphics::createImage(Image &image, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage, VkImageViewType type, VkImageAspectFlags aspect, VkFilter filter, VkSamplerAddressMode samplerMode, bool cubemap)
+void VulkanGraphics::createImage(Image &image, uint32_t width, uint32_t height, VkFormat format,
+                                 VkImageUsageFlags usage, VkImageViewType type, VkImageAspectFlags aspect,
+                                 VkFilter filter, VkSamplerAddressMode samplerMode, bool cubemap)
 {
     VkImageCreateInfo imageInfo = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     imageInfo.imageType = VK_IMAGE_TYPE_2D;
@@ -837,24 +839,7 @@ VkSampler VulkanGraphics::createSampler(VkFilter minFilter, VkFilter magFilter, 
     return sampler;
 }
 
-void VulkanGraphics::loadTextureInfo(TextureInfo &textureInfo, const char *file)
-{
-    int width, height, channels;
-    unsigned char *data = stbi_load(file, &width, &height, &channels, STBI_rgb_alpha);
-    if (!data) {
-        printf("Failed to load texture data '%s'\n", file);
-        return;
-    }
-
-    textureInfo.width = width;
-    textureInfo.height = height;
-    textureInfo.channels = STBI_rgb_alpha;
-    textureInfo.pixels = data;
-    textureInfo.path = file;
-    textureInfo.loaded = true;
-}
-
-void VulkanGraphics::createTexture(Texture &texture, TextureInfo &info, VkFormat format)
+void VulkanGraphics::createTexture(Texture &texture, const TextureInfo &info, VkFormat format)
 {
     uint32_t size = info.width * info.height * info.channels;
 
@@ -918,13 +903,13 @@ void VulkanGraphics::createTexture(Texture &texture, TextureInfo &info, VkFormat
 
 void VulkanGraphics::createTextureCubemap(Texture &texture, std::filesystem::path dir, VkFormat format)
 {
-    std::filesystem::path paths[6] = {"right.jpg", "left.jpg", "top.jpg", "bottom.jpg", "front.jpg", "back.jpg"};
+    std::array<std::string, 6> paths = {"right.jpg", "left.jpg", "top.jpg", "bottom.jpg", "front.jpg", "back.jpg"};
 
-    TextureInfo infos[6];
+    std::array<TextureInfo, 6> infos;
     for (uint32_t face = 0; face < 6; face++) {
         auto path = dir / paths[face];
 
-        loadTextureInfo(infos[face], path.c_str());
+        infos[face].load(path);
     }
 
     // XXX: image sizes should be the same.
@@ -934,9 +919,8 @@ void VulkanGraphics::createTextureCubemap(Texture &texture, std::filesystem::pat
 
     createImage(texture.image, infos[0].width, infos[0].height, format, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_VIEW_TYPE_CUBE, VK_IMAGE_ASPECT_COLOR_BIT, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, true);
 
-    Buffer staging;
+    Buffer staging{};
     createBuffer(staging, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-
 
     for (uint32_t face = 0; face < 6; face++) {
         memcpy(static_cast<unsigned char*>(staging.info.pMappedData) + (layerSize * face), infos[face].pixels, layerSize);

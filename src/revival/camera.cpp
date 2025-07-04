@@ -1,7 +1,7 @@
 #include <revival/camera.h>
 #include "imgui.h"
 
-void Camera::update(GLFWwindow *window, float deltaTime)
+void Camera::update(GLFWwindow *window, double deltaTime)
 {
     // keyboard
     keys.shift = glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) != GLFW_RELEASE;

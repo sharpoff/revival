@@ -1,5 +1,7 @@
 build/
 .cache/
 .vscode/
-assets/
-models/sponza
+.idea/
+models/
+textures/
+audio/

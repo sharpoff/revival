@@ -23,10 +23,3 @@ add_subdirectory(VulkanMemoryAllocator)
 
 # assimp
 add_subdirectory(assimp)
-
-# Jolt
-set(CPP_RTTI_ENABLED ON)
-add_subdirectory(JoltPhysics/Build)
-
-# miniaudio
-add_subdirectory(miniaudio)

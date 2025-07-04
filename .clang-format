@@ -1,0 +1,33 @@
+BasedOnStyle: LLVM
+TabWidth: 4
+IndentWidth: 4
+ColumnLimit: 100
+
+Language: Cpp
+
+# Configure each individual brace in BraceWrapping
+BreakBeforeBraces: Custom
+# Control of individual brace wrapping cases
+BraceWrapping: {
+    AfterClass: 'true'
+    AfterControlStatement: 'false'
+    AfterEnum : 'true'
+    AfterFunction : 'true'
+    AfterNamespace : 'true'
+    AfterStruct : 'true'
+    AfterUnion : 'true'
+    BeforeCatch : 'true'
+    BeforeElse : 'false'
+    IndentBraces : 'false'
+    AfterExternBlock : 'true'
+    SplitEmptyFunction : 'false'
+    SplitEmptyRecord : 'false'
+    SplitEmptyNamespace : 'true'
+}
+
+AccessModifierOffset: -4
+IndentCaseLabels: true
+
+SortUsingDeclarations: true
+SortIncludes: true
+ReflowComments: false

@@ -65,12 +65,13 @@ void PipelineBuilder::clearShaders()
     shaderStages.clear();
 }
 
-void PipelineBuilder::setShader(VkShaderModule module, VkShaderStageFlagBits stage)
+void PipelineBuilder::setShader(VkShaderModule module, VkShaderStageFlagBits stage, VkSpecializationInfo *specializationInfo)
 {
     VkPipelineShaderStageCreateInfo shaderInfo = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
     shaderInfo.stage = stage;
     shaderInfo.module = module;
     shaderInfo.pName = "main";
+    shaderInfo.pSpecializationInfo = specializationInfo;
 
     shaderStages.push_back(shaderInfo);
 }

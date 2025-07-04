@@ -1,7 +1,6 @@
 #include <revival/passes/skybox_pass.h>
 #include <revival/vulkan/utils.h>
 #include <revival/vulkan/graphics.h>
-#include <revival/scene_manager.h>
 #include <revival/vulkan/pipeline_builder.h>
 #include <revival/vulkan/descriptor_writer.h>
 

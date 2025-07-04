@@ -4,7 +4,8 @@
 #include <revival/vulkan/resources.h>
 #include <revival/types.h>
 
-#include <revival/game_object.h>
+#include "glm/gtx/associated_min_max.hpp"
+#include "glm/gtx/associated_min_max.hpp"
 
 class VulkanGraphics;
 
@@ -17,8 +18,7 @@ public:
     void beginFrame(VulkanGraphics &graphics, VkCommandBuffer cmd, VkBuffer indexBuffer, uint32_t shadowMapIndex);
     void endFrame(VulkanGraphics &graphics, VkCommandBuffer cmd, uint32_t shadowMapIndex);
 
-    void render(VkCommandBuffer cmd, Scene &scene, mat4 lightMVP);
-    void render(VkCommandBuffer cmd, GameObject &gameObject, mat4 lightMVP);
+    void render(VkCommandBuffer cmd, Mesh &mesh, mat4 lightMVP);
 
     Image &getShadowMapByLightIndex(uint32_t index) { return shadowMaps[index]; };
 private:

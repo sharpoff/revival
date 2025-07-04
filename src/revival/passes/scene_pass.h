@@ -4,8 +4,6 @@
 #include <revival/vulkan/resources.h>
 #include <revival/types.h>
 
-#include <revival/game_object.h>
-
 class VulkanGraphics;
 
 class ScenePass
@@ -17,8 +15,8 @@ public:
     void beginFrame(VulkanGraphics &graphics, VkCommandBuffer cmd, VkBuffer &indexBuffer);
     void endFrame(VulkanGraphics &graphics, VkCommandBuffer cmd);
 
-    void render(VkCommandBuffer cmd, Scene &scene);
-    void render(VkCommandBuffer cmd, GameObject &gameObject);
+    void render(VkCommandBuffer cmd, Mesh &mesh);
+
 private:
     VkPipelineLayout layout;
     VkPipeline pipeline;

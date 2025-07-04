@@ -1,15 +1,10 @@
-#include <revival/engine.h>
+#include <revival/application.h>
 
 int main()
 {
-    Engine engine;
-    if (!engine.init("Game", 1280, 720, false)) {
-        printf("Failed to initialize engine.\n");
-        return EXIT_FAILURE;
-    }
+    Application app("Game", 1280, 720, false);
 
-    engine.run();
+    app.run();
 
-    engine.shutdown();
     return 0;
 }

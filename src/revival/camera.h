@@ -5,7 +5,7 @@
 
 struct Camera
 {
-    void update(GLFWwindow *window, float deltaTime);
+    void update(GLFWwindow *window, double deltaTime);
 
     void setProjection(mat4 projection);
     void setPosition(vec3 position);

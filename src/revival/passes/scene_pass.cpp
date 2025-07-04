@@ -1,11 +1,11 @@
 #include <revival/passes/scene_pass.h>
 #include <revival/vulkan/utils.h>
 #include <revival/vulkan/graphics.h>
-#include <revival/scene_manager.h>
 #include <revival/vulkan/pipeline_builder.h>
 #include <revival/vulkan/descriptor_writer.h>
 
-void ScenePass::init(VulkanGraphics &graphics, std::vector<Texture> &textures, Buffer &vertexBuffer, Buffer &uboBuffer, Buffer &materialsBuffer, Buffer &lightsBuffer)
+void ScenePass::init(VulkanGraphics &graphics, std::vector<Texture> &textures, Buffer &vertexBuffer,
+                     Buffer &uboBuffer, Buffer &materialsBuffer, Buffer &lightsBuffer)
 {
     VkDevice device = graphics.getDevice();
 
@@ -62,6 +62,11 @@ void ScenePass::init(VulkanGraphics &graphics, std::vector<Texture> &textures, B
     //
     auto vertex = vkutils::loadShaderModule(device, "build/shaders/mesh.vert.spv");
     auto fragment = vkutils::loadShaderModule(device, "build/shaders/mesh.frag.spv");
+    if (vertex == VK_NULL_HANDLE || fragment == VK_NULL_HANDLE) {
+        fprintf(stderr, "Failed to load shaders.\n");
+        exit(-1);
+    }
+
     vkutils::setDebugName(device, (uint64_t)vertex, VK_OBJECT_TYPE_SHADER_MODULE, "mesh.vert");
     vkutils::setDebugName(device, (uint64_t)fragment, VK_OBJECT_TYPE_SHADER_MODULE, "mesh.frag");
 
@@ -131,30 +136,14 @@ void ScenePass::endFrame(VulkanGraphics &graphics, VkCommandBuffer cmd)
     graphics.endFrame(cmd);
 }
 
-void ScenePass::render(VkCommandBuffer cmd, Scene &scene)
+void ScenePass::render(VkCommandBuffer cmd, Mesh &mesh)
 {
     PushConstant push = {};
-    for (auto &mesh : scene.meshes) {
-        push.model = mesh.matrix;
-        push.materialIndex = mesh.materialIndex;
+    push.model = mesh.matrix;
+    push.materialIndex = mesh.materialIndex;
 
-        vkCmdPushConstants(cmd, layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(push), &push);
+    vkCmdPushConstants(cmd, layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+                       sizeof(push), &push);
 
-        vkCmdDrawIndexed(cmd, mesh.indexCount, 1, mesh.indexOffset, 0, 0);
-    }
-}
-
-void ScenePass::render(VkCommandBuffer cmd, GameObject &gameObject)
-{
-    if (!gameObject.scene) return;
-
-    PushConstant push = {};
-    for (auto &mesh : gameObject.scene->meshes) {
-        push.model = gameObject.transform.getModelMatrix() * mesh.matrix;
-        push.materialIndex = mesh.materialIndex;
-
-        vkCmdPushConstants(cmd, layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(push), &push);
-
-        vkCmdDrawIndexed(cmd, mesh.indexCount, 1, mesh.indexOffset, 0, 0);
-    }
+    vkCmdDrawIndexed(cmd, mesh.indexCount, 1, mesh.indexOffset, 0, 0);
 }

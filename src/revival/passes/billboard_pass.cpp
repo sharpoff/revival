@@ -63,6 +63,11 @@ void BillboardPass::init(VulkanGraphics &graphics, std::vector<Texture> &texture
     //
     auto vertex = vkutils::loadShaderModule(device, "build/shaders/billboard.vert.spv");
     auto fragment = vkutils::loadShaderModule(device, "build/shaders/billboard.frag.spv");
+    if (vertex == VK_NULL_HANDLE || fragment == VK_NULL_HANDLE) {
+        fprintf(stderr, "Failed to load shaders.\n");
+        exit(-1);
+    }
+
     vkutils::setDebugName(device, (uint64_t)vertex, VK_OBJECT_TYPE_SHADER_MODULE, "billboard.vert");
     vkutils::setDebugName(device, (uint64_t)fragment, VK_OBJECT_TYPE_SHADER_MODULE, "billboard.frag");
 

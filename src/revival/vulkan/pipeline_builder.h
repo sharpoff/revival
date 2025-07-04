@@ -12,7 +12,7 @@ public:
     void setAttributeDescription(uint32_t location, uint32_t binding, VkFormat format, uint32_t offset);
     void setPipelineLayout(VkPipelineLayout &layout);
     void clearShaders();
-    void setShader(VkShaderModule module, VkShaderStageFlagBits stage);
+    void setShader(VkShaderModule module, VkShaderStageFlagBits stage, VkSpecializationInfo *specializationInfo = nullptr);
     void setPolygonMode(VkPolygonMode polygonMode);
     void setCulling(VkCullModeFlags cullMode, VkFrontFace cullFace);
     void setDepthTest(bool mode);

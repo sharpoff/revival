@@ -3,6 +3,7 @@
 #include <volk.h>
 #include <vk_mem_alloc.h>
 #include <stb_image.h>
+#include <string>
 
 struct Buffer
 {
@@ -25,16 +26,37 @@ struct Image
 
 struct TextureInfo
 {
-    const char *path = "";
+    std::string path;
     unsigned char *pixels = nullptr;
 
     int width = 0;
     int height = 0;
     int channels = STBI_rgb_alpha;
+    bool loaded = false;
 
-    bool loaded;
-    ~TextureInfo()
-    {
+    void load(std::string filename) {
+        int width, height, channels;
+        unsigned char *data = stbi_load(filename.c_str(), &width, &height, &channels, STBI_rgb_alpha);
+        if (!data) {
+            printf("Failed to load texture data '%s'\n", filename.c_str());
+            return;
+        }
+
+        this->width = width;
+        this->height = height;
+        channels = STBI_rgb_alpha;
+        pixels = data;
+        path = filename;
+        loaded = true;
+    }
+
+    TextureInfo() {}
+
+    TextureInfo(std::string filename) {
+        load(filename);
+    }
+
+    ~TextureInfo() {
         if (loaded)
             stbi_image_free(pixels);
     }

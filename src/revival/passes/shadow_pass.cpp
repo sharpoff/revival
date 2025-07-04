@@ -1,7 +1,6 @@
 #include <revival/passes/shadow_pass.h>
 #include <revival/vulkan/utils.h>
 #include <revival/vulkan/graphics.h>
-#include <revival/scene_manager.h>
 #include <revival/vulkan/pipeline_builder.h>
 #include <revival/vulkan/descriptor_writer.h>
 
@@ -18,7 +17,10 @@ void ShadowPass::init(VulkanGraphics &graphics, std::vector<Texture> &textures, 
         uint32_t shadowMapIndex = textures.size();
         Texture &shadowMap = textures.emplace_back();
 
-        graphics.createImage(shadowMap.image, shadowMapSize, shadowMapSize, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_DEPTH_BIT, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER);
+        graphics.createImage(shadowMap.image, shadowMapSize, shadowMapSize, VK_FORMAT_D32_SFLOAT,
+                             VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                             VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_DEPTH_BIT, VK_FILTER_LINEAR,
+                             VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
 
         light.shadowMapIndex = shadowMapIndex;
         shadowMaps.push_back(shadowMap.image);
@@ -49,7 +51,12 @@ void ShadowPass::init(VulkanGraphics &graphics, std::vector<Texture> &textures, 
     // Pipeline
     //
     auto vertex = vkutils::loadShaderModule(device, "build/shaders/depth.vert.spv");
-    vkutils::setDebugName(device, (uint64_t)vertex, VK_OBJECT_TYPE_SHADER_MODULE, "depth.vert");
+    if (vertex == VK_NULL_HANDLE) {
+        fprintf(stderr, "Failed to load shaders.\n");
+        exit(-1);
+    }
+
+    vkutils::setDebugName(device, reinterpret_cast<uint64_t>(vertex), VK_OBJECT_TYPE_SHADER_MODULE, "depth.vert");
 
     // create pipeline layout
     VkPushConstantRange pushConstant = {VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4)};
@@ -64,7 +71,7 @@ void ShadowPass::init(VulkanGraphics &graphics, std::vector<Texture> &textures, 
     builder.setCulling(VK_CULL_MODE_FRONT_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
     builder.setPolygonMode(VK_POLYGON_MODE_FILL);
     pipeline = builder.build(device, 0, true);
-    vkutils::setDebugName(device, (uint64_t)pipeline, VK_OBJECT_TYPE_PIPELINE, "shadow pipeline");
+    vkutils::setDebugName(device, reinterpret_cast<uint64_t>(pipeline), VK_OBJECT_TYPE_PIPELINE, "shadow pipeline");
 
     vkDestroyShaderModule(device, vertex, nullptr);
 }
@@ -77,9 +84,9 @@ void ShadowPass::shutdown(VkDevice device)
     vkDestroyDescriptorSetLayout(device, setLayout, nullptr);
 }
 
-void ShadowPass::beginFrame(VulkanGraphics &graphics, VkCommandBuffer cmd, VkBuffer indexBuffer, uint32_t lightIndex)
+void ShadowPass::beginFrame(VulkanGraphics &graphics, VkCommandBuffer cmd, VkBuffer indexBuffer, uint32_t shadowMapIndex)
 {
-    Image &shadowMap = shadowMaps[lightIndex];
+    Image &shadowMap = shadowMaps[shadowMapIndex];
 
     VkRenderingAttachmentInfo depthAttachment = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
     depthAttachment.clearValue.depthStencil = {0.0, 0};
@@ -115,22 +122,9 @@ void ShadowPass::endFrame(VulkanGraphics &graphics, VkCommandBuffer cmd, uint32_
         {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1});
 }
 
-void ShadowPass::render(VkCommandBuffer cmd, Scene &scene, mat4 lightMVP)
+void ShadowPass::render(VkCommandBuffer cmd, Mesh &mesh, const mat4 lightMVP)
 {
-    for (auto &mesh : scene.meshes) {
-        mat4 mvp = lightMVP * mesh.matrix;
-        vkCmdPushConstants(cmd, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &mvp);
-        vkCmdDrawIndexed(cmd, mesh.indexCount, 1, mesh.indexOffset, 0, 0);
-    }
-}
-
-void ShadowPass::render(VkCommandBuffer cmd, GameObject &gameObject, mat4 lightMVP)
-{
-    if (!gameObject.scene) return;
-
-    lightMVP *= gameObject.transform.getModelMatrix();
-    for (auto &mesh : gameObject.scene->meshes) {
-        vkCmdPushConstants(cmd, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &lightMVP);
-        vkCmdDrawIndexed(cmd, mesh.indexCount, 1, mesh.indexOffset, 0, 0);
-    }
+    mat4 mvp = lightMVP * mesh.matrix;
+    vkCmdPushConstants(cmd, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &mvp);
+    vkCmdDrawIndexed(cmd, mesh.indexCount, 1, mesh.indexOffset, 0, 0);
 }

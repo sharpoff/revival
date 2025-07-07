@@ -22,16 +22,9 @@ public:
     void endCommandBuffer(VkCommandBuffer cmd);
     void submitCommandBuffer(VkCommandBuffer cmd);
 
-    void beginFrame(VkCommandBuffer cmd);
-    void beginFrame(VkCommandBuffer cmd, Image &depthImage);
-    void beginFrame(VkCommandBuffer cmd, std::vector<std::pair<VkRenderingAttachmentInfo, Image>> &attachments, VkExtent2D extent);
-
-    // TODO: add variation of endFrame with arbitrary number of barriers passed to it
-    void endFrame(VkCommandBuffer cmd, bool insertBarrier = true);
-
     // resource creation
     void createBuffer(Buffer &buffer, uint64_t size, VkBufferUsageFlags usage, VmaMemoryUsage memUsage = VMA_MEMORY_USAGE_AUTO);
-    void createImage(Image &image, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage, VkImageViewType type, VkImageAspectFlags aspect, VkFilter filter = VK_FILTER_LINEAR, VkSamplerAddressMode samplerMode = VK_SAMPLER_ADDRESS_MODE_REPEAT, bool cubemap = false);
+    void createImage(Image &image, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage, VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT, VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT, VkImageViewType type = VK_IMAGE_VIEW_TYPE_2D, VkFilter filter = VK_FILTER_LINEAR, VkSamplerAddressMode samplerMode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
 
     void destroyBuffer(Buffer &buffer);
     void destroyImage(Image &image);
@@ -52,20 +45,26 @@ public:
     VkImage &getSwapchainImage() { return swapchainImages[imageIndex]; };
     Image &getDepthImage() { return depthImage; };
     VkImageView &getSwapchainImageView() { return swapchainImageViews[imageIndex]; };
+    Image &getRenderImage() { return renderImage; };
+    VkSampleCountFlagBits getMultisampleCount() { return multisampleCount; };
 private:
-    VkInstance createInstance();
-    VkSurfaceKHR createSurface(VkInstance instance, GLFWwindow *window);
-    VkDebugUtilsMessengerEXT createDebugMessenger(VkInstance instance);
-    VmaAllocator createAllocator(VkInstance instance, VkDevice device, VkPhysicalDevice physicalDevice, VmaAllocatorCreateFlags flags);
+    void createInstance();
+    void createSurface(VkInstance instance, GLFWwindow *window);
+    void createDebugMessenger(VkInstance instance);
+    void createAllocator(VkInstance instance, VkDevice device, VkPhysicalDevice physicalDevice, VmaAllocatorCreateFlags flags);
 
-    VkPhysicalDevice createPhyiscalDevice(VkInstance instance, VkSurfaceKHR surface, uint32_t &queueFamilyIndex);
-    VkDevice createDevice(VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physical, uint32_t queueFamilyIndex);
+    void createPhyiscalDevice(VkInstance instance, VkSurfaceKHR surface, uint32_t &queueFamilyIndex);
+    void createDevice(VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physical, uint32_t queueFamilyIndex);
 
-    VkSwapchainKHR createSwapchain(VkDevice device, VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, uint32_t queueFamilyIndex, GLFWwindow *window, VkExtent2D &swapchainExtent);
-    std::vector<VkImageView> createSwapchainImageViews(VkDevice device, std::vector<VkImage> &swapchainImages);
+    void createSwapchain(VkDevice device, VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, uint32_t queueFamilyIndex, GLFWwindow *window, VkExtent2D &swapchainExtent);
 
     VkCommandPool createCommandPool(VkDevice device, uint32_t queueFamilyIndex);
     std::array<VkCommandBuffer, FRAMES_IN_FLIGHT> createCommandBuffers(VkDevice device, VkCommandPool commandPool);
+
+    void createSyncPrimitives();
+
+    VkSemaphore createSemaphore(VkDevice device);
+    VkFence createFence(VkDevice device, VkFenceCreateFlags flags);
 
     void recreateSwapchain();
 
@@ -101,6 +100,9 @@ private:
     uint32_t imageIndex = 0;
     uint32_t currentFrame = 0;
 
+    const VkSampleCountFlagBits multisampleCount = VK_SAMPLE_COUNT_16_BIT;
+
+    Image renderImage;
     Image depthImage;
 
     bool resizeRequested = false;

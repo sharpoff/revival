@@ -15,7 +15,7 @@ struct Light
     mat4 mvp;
     vec3 pos;
     vec3 color;
-    uint shadowMapIndex;
+    int shadowMapIndex;
 };
 
 struct Vertex

@@ -1,5 +1,6 @@
 #include <revival/asset_manager.h>
 #include <revival/util.h>
+#include <revival/logger.h>
 
 #include <revival/vulkan/graphics.h>
 
@@ -15,7 +16,7 @@ Scene &AssetManager::loadScene2(std::filesystem::path path)
     const aiScene *aScene = aiImportFile(path.c_str(), aiProcess_Triangulate | aiProcess_OptimizeMeshes | aiProcess_FlipUVs);
 
     if (aScene == nullptr) {
-        printf("Failed to load model %s - %s\n", path.c_str(), aiGetErrorString());
+        Logger::println(LOG_ERROR, "Failed to load model ", path.c_str(), ". ", aiGetErrorString());
         exit(EXIT_FAILURE);
     }
 

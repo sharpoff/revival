@@ -5,11 +5,6 @@
 #include <revival/types.h>
 #include <revival/asset_manager.h>
 
-#include <revival/passes/shadow_pass.h>
-#include <revival/passes/shadow_debug_pass.h>
-#include <revival/passes/scene_pass.h>
-#include <revival/passes/skybox_pass.h>
-#include <revival/passes/billboard_pass.h>
 #include <revival/logger.h>
 
 class Physics;
@@ -27,12 +22,28 @@ public:
 private:
     void renderImgui(VkCommandBuffer cmd);
     void updateDynamicBuffers();
+
     void createResources();
+    void loadShaders(std::filesystem::path dir);
+    void createDescriptors();
+    void createPipelines();
 
     GLFWwindow *window;
     VulkanGraphics graphics;
     Camera &camera;
     AssetManager &sceneManager;
+
+    std::unordered_map<std::string, VkShaderModule> shaders;
+
+    VkPipelineLayout pipelineLayout;
+    struct {
+        VkPipeline scene;
+        VkPipeline shadow;
+    } pipelines;
+
+    VkDescriptorPool pool;
+    VkDescriptorSetLayout setLayout;
+    VkDescriptorSet set;
 
     Buffer vertexBuffer;
     Buffer indexBuffer;
@@ -43,14 +54,17 @@ private:
 
     Texture skybox;
 
-    bool debugLightDepth = false;
-    float shadowBias = 0.00001;
+    const uint32_t shadowMapSize = 2048;
+    const float depthBiasConstant = 1.25f;
+    const float depthBiasSlope = 1.75f;
 
-    ShadowPass shadowPass;
-    ShadowDebugPass shadowDebugPass;
-    ScenePass scenePass;
-    SkyboxPass skyboxPass;
-    // BillboardPass billboardPass;
+    std::vector<Image> shadowMaps;
+
+    struct PushConstant
+    {
+        alignas(16) mat4 model;
+        int materialIndex;
+    };
 
     struct GlobalUBO
     {
@@ -59,6 +73,4 @@ private:
         uint numLights;
         alignas(16) vec3 cameraPos;
     };
-
-    bool initialized = false;
 };

@@ -128,6 +128,11 @@ void PipelineBuilder::setPatchControlPoints(uint32_t points)
     tessellationState.patchControlPoints = points;
 }
 
+void PipelineBuilder::setMultisampleCount(VkSampleCountFlagBits samples)
+{
+    multisampleState.rasterizationSamples = samples;
+}
+
 VkPipeline PipelineBuilder::build(VkDevice device, uint32_t colorAttachmentCount, bool depthUsed)
 {
     vertexInputState.vertexAttributeDescriptionCount = attributeDescriptions.size();
@@ -173,5 +178,6 @@ VkPipeline PipelineBuilder::build(VkDevice device, uint32_t colorAttachmentCount
 
     VkPipeline pipeline;
     VK_CHECK(vkCreateGraphicsPipelines(device, 0, 1, &pipelineInfo, nullptr, &pipeline));
+
     return pipeline;
 }

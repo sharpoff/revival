@@ -21,7 +21,7 @@ class Logger
 public:
 
     template<class ...Args>
-    static void print(LogType type, Args ...args)
+    static void println(LogType type, Args ...args)
     {
         LogColor color = GRAY;
         std::string typeName;

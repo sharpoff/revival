@@ -4,6 +4,8 @@
 #include <vk_mem_alloc.h>
 #include <stb_image.h>
 #include <string>
+#include <iomanip>
+#include <revival/logger.h>
 
 struct Buffer
 {
@@ -38,7 +40,7 @@ struct TextureInfo
         int width, height, channels;
         unsigned char *data = stbi_load(filename.c_str(), &width, &height, &channels, STBI_rgb_alpha);
         if (!data) {
-            printf("Failed to load texture data '%s'\n", filename.c_str());
+            Logger::println(LOG_ERROR, "Failed to load texture data ", std::quoted(filename));
             return;
         }
 

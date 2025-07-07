@@ -10,7 +10,7 @@ Application::Application(std::string name, int width, int height, bool enableFul
     std::filesystem::current_path(util::getProjectRoot());
 
     if (!glfwInit()) {
-        printf("Failed to initialize glfw.\n");
+        Logger::println(LOG_ERROR, "Failed to initialize glfw.");
         exit(EXIT_FAILURE);
     }
 
@@ -33,7 +33,7 @@ Application::Application(std::string name, int width, int height, bool enableFul
         fullscreen = false;
     }
     if (!window) {
-        printf("Failed to create glfw window.\n");
+        Logger::println(LOG_ERROR, "Failed to create glfw window.");
         glfwTerminate();
         exit(EXIT_FAILURE);
     }
@@ -48,14 +48,13 @@ Application::Application(std::string name, int width, int height, bool enableFul
     camera.setProjection(math::perspective(glm::radians(60.0f), float(width) / height, 0.1f, 300.0f));
     camera.setPosition(vec3(0.0, 2.0, 3.0));
 
-    renderer.init(window);
-
     // loading lights/objects/scenes/models
     sceneManager.addLight({mat4(1.0), vec3(7.0, 29.0, 0.0), vec3(1.0)});
 
     sceneManager.loadScene("sponza", "models/sponza/Sponza.gltf");
-    // sceneManager.loadScene("test_scene", "models/test_scene.gltf");
     sceneManager.loadScene("cube", "models/cube.gltf");
+
+    renderer.init(window);
 }
 
 Application::~Application()

@@ -2,6 +2,8 @@
 
 void DescriptorWriter::write(uint32_t binding, VkBuffer &buffer, uint32_t size, VkDescriptorType type)
 {
+    if (size <= 0) return;
+
     VkDescriptorBufferInfo &bufferInfo = bufferInfos.emplace_back(VkDescriptorBufferInfo{
         .buffer = buffer,
         .offset = 0,
@@ -54,6 +56,8 @@ void DescriptorWriter::write(uint32_t binding, VkDescriptorImageInfo *infos, uin
 
 void DescriptorWriter::write(uint32_t binding, VkDescriptorBufferInfo *infos, uint32_t infosSize, VkDescriptorType type)
 {
+    if (infosSize <= 0) return;
+
     for (uint32_t i = 0; i < infosSize; i++) {
         bufferInfos.push_back(infos[i]);
     }

@@ -12,17 +12,21 @@
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_vulkan.h"
 
+
+#ifndef NDEBUG
+    bool isDebug = true;
+#else
+    bool isDebug = false;
+#endif
+
 VkBool32 VKAPI_PTR debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageTypes, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
-    const char *prefix = "";
-    if ((messageTypes & VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT) == VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT) {
+    const char *prefix = "UNDEFINED";
+    if ((messageTypes & VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT) == VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT)
         prefix = "GENERAL";
-    }
-    else if ((messageTypes & VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT) == VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT) {
+    else if ((messageTypes & VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT) == VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT)
         prefix = "VALIDATION";
-    }
-    else if ((messageTypes & VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT) == VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT) {
+    else if ((messageTypes & VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT) == VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT)
         prefix = "PERFORMANCE";
-    }
 
     printf("[%s] %s\n", prefix, pCallbackData->pMessage);
 
@@ -35,49 +39,30 @@ void VulkanGraphics::init(GLFWwindow *window)
 
     // vulkan initialization
     VK_CHECK(volkInitialize());
-    instance = createInstance();
+    createInstance();
     volkLoadInstance(instance);
 
-#ifndef NDEBUG
-    debugMessenger = createDebugMessenger(instance);
-#endif
+    createDebugMessenger(instance);
 
-    surface = createSurface(instance, window);
+    createSurface(instance, window);
 
-    physicalDevice = createPhyiscalDevice(instance, surface, queueFamilyIndex);
-    device = createDevice(instance, surface, physicalDevice, queueFamilyIndex);
+    createPhyiscalDevice(instance, surface, queueFamilyIndex);
+    createDevice(instance, surface, physicalDevice, queueFamilyIndex);
     volkLoadDevice(device);
 
-    allocator = createAllocator(instance, device, physicalDevice, 0);
-
-    // graphics/present queue
-    vkGetDeviceQueue(device, queueFamilyIndex, 0, &queue);
-    assert(queue);
+    createAllocator(instance, device, physicalDevice, 0);
 
     // create swapchain
-    swapchain = createSwapchain(device, physicalDevice, surface, queueFamilyIndex, window, swapchainExtent);
-
-    // get swapchain images
-    uint32_t imageCount = 0;
-    vkGetSwapchainImagesKHR(device, swapchain, &imageCount, nullptr);
-    swapchainImages.resize(imageCount);
-    vkGetSwapchainImagesKHR(device, swapchain, &imageCount, swapchainImages.data());
-
-    swapchainImageViews = createSwapchainImageViews(device, swapchainImages);
+    createSwapchain(device, physicalDevice, surface, queueFamilyIndex, window, swapchainExtent);
 
     // command pool
     commandPool = createCommandPool(device, queueFamilyIndex);
     commandBuffers = createCommandBuffers(device, commandPool);
 
-    // synchronization primitives
-    for (unsigned int i = 0; i < FRAMES_IN_FLIGHT; i++) {
-        acquireSemaphores[i] = vkutils::createSemaphore(device);
-        submitSemaphores[i] = vkutils::createSemaphore(device);
-        finishRenderFences[i] = vkutils::createFence(device, VK_FENCE_CREATE_SIGNALED_BIT);
-    }
+    createSyncPrimitives();
 
-    // depth image
-    createImage(depthImage, swapchainExtent.width, swapchainExtent.height, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_DEPTH_BIT);
+    createImage(renderImage, swapchainExtent.width, swapchainExtent.height, VK_FORMAT_B8G8R8A8_SRGB, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_ASPECT_COLOR_BIT, multisampleCount);
+    createImage(depthImage, swapchainExtent.width, swapchainExtent.height, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT, multisampleCount);
 
     initImGui();
 }
@@ -91,6 +76,7 @@ void VulkanGraphics::shutdown()
     ImGui::DestroyContext();
     vkDestroyDescriptorPool(device, imGuiDesctiptorPool, nullptr);
 
+    destroyImage(renderImage);
     destroyImage(depthImage);
 
     for (unsigned int i = 0; i < FRAMES_IN_FLIGHT; i++) {
@@ -110,15 +96,15 @@ void VulkanGraphics::shutdown()
 
     vkDestroyDevice(device, nullptr);
 
-#ifndef NDEBUG
-    vkDestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
-#endif
-
     vkDestroySurfaceKHR(instance, surface, nullptr);
+
+    if (isDebug)
+        vkDestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
+
     vkDestroyInstance(instance, nullptr);
 }
 
-VkInstance VulkanGraphics::createInstance()
+void VulkanGraphics::createInstance()
 {
     VkApplicationInfo appInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
     appInfo.pApplicationName = "Application";
@@ -126,11 +112,6 @@ VkInstance VulkanGraphics::createInstance()
     appInfo.pEngineName = "Engine";
     appInfo.engineVersion = 0;
     appInfo.apiVersion = API_VERSION;
-
-    bool isDebug = false;
-#ifndef NDEBUG
-    isDebug = true;
-#endif
 
     // Vulkan extensions
     uint32_t supportedExtensionCount = 0;
@@ -154,9 +135,8 @@ VkInstance VulkanGraphics::createInstance()
             }
         }
 
-        if (!found) {
-            printf("Instance extension is not supported.\n");
-        }
+        if (!found)
+            Logger::println(LOG_ERROR, "Instance extension is not supported.");
     }
 
     // Vulkan layers
@@ -179,9 +159,8 @@ VkInstance VulkanGraphics::createInstance()
             }
         }
 
-        if (!found) {
-            printf("Instance layer is not supported.\n");
-        }
+        if (!found)
+            Logger::println(LOG_ERROR, "Instance layer is not supported.\n");
     }
 
     VkInstanceCreateInfo instanceCI = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
@@ -200,38 +179,30 @@ VkInstance VulkanGraphics::createInstance()
         instanceCI.pNext = &messengerInfo;
     }
 
-    VkInstance instance;
     VK_CHECK(vkCreateInstance(&instanceCI, nullptr, &instance));
-
-    return instance;
 }
 
-VkSurfaceKHR VulkanGraphics::createSurface(VkInstance instance, GLFWwindow *window)
+void VulkanGraphics::createSurface(VkInstance instance, GLFWwindow *window)
 {
-    VkSurfaceKHR surface;
     VK_CHECK(glfwCreateWindowSurface(instance, window, NULL, &surface));
-
-    return surface;
 }
 
-VkDebugUtilsMessengerEXT VulkanGraphics::createDebugMessenger(VkInstance instance)
+void VulkanGraphics::createDebugMessenger(VkInstance instance)
 {
-    VkDebugUtilsMessengerEXT messenger;
-
+    #ifndef NDEBUG
+        return;
+    #endif
     VkDebugUtilsMessengerCreateInfoEXT messengerInfo = {VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT};
     messengerInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
     messengerInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
     messengerInfo.pfnUserCallback = debugCallback;
     messengerInfo.pUserData = nullptr;
 
-    vkCreateDebugUtilsMessengerEXT(instance, &messengerInfo, nullptr, &messenger);
-
-    return messenger;
+    VK_CHECK(vkCreateDebugUtilsMessengerEXT(instance, &messengerInfo, nullptr, &debugMessenger));
 }
 
-VmaAllocator VulkanGraphics::createAllocator(VkInstance instance, VkDevice device, VkPhysicalDevice physicalDevice, VmaAllocatorCreateFlags flags)
+void VulkanGraphics::createAllocator(VkInstance instance, VkDevice device, VkPhysicalDevice physicalDevice, VmaAllocatorCreateFlags flags)
 {
-    VmaAllocator allocator;
     VmaVulkanFunctions vmaFunctions = {};
     vmaFunctions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
     vmaFunctions.vkGetDeviceProcAddr = vkGetDeviceProcAddr;
@@ -267,14 +238,10 @@ VmaAllocator VulkanGraphics::createAllocator(VkInstance instance, VkDevice devic
     createInfo.flags = flags;
 
     VK_CHECK(vmaCreateAllocator(&createInfo, &allocator));
-
-    return allocator;
 }
 
-VkPhysicalDevice VulkanGraphics::createPhyiscalDevice(VkInstance instance, VkSurfaceKHR surface, uint32_t &queueFamilyIndex)
+void VulkanGraphics::createPhyiscalDevice(VkInstance instance, VkSurfaceKHR surface, uint32_t &queueFamilyIndex)
 {
-    VkPhysicalDevice physicalDevice;
-
     // Physical device
     uint32_t physicalDeviceCount = 0;
     VK_CHECK(vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, nullptr));
@@ -330,11 +297,9 @@ VkPhysicalDevice VulkanGraphics::createPhyiscalDevice(VkInstance instance, VkSur
         }
     }
     assert(deviceFound);
-
-    return physicalDevice;
 }
 
-VkDevice VulkanGraphics::createDevice(VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physical, uint32_t queueFamilyIndex)
+void VulkanGraphics::createDevice(VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physical, uint32_t queueFamilyIndex)
 {
     // get device extensions
     uint32_t supportedDeviceExtensionCount = 0;
@@ -355,7 +320,7 @@ VkDevice VulkanGraphics::createDevice(VkInstance instance, VkSurfaceKHR surface,
         }
 
         if (!found) {
-            printf("Device extension is not supported.\n");
+            Logger::println(LOG_ERROR, "Device extension is not supported.\n");
             exit(EXIT_FAILURE);
         }
     }
@@ -392,13 +357,14 @@ VkDevice VulkanGraphics::createDevice(VkInstance instance, VkSurfaceKHR surface,
     deviceInfo.ppEnabledExtensionNames = deviceExtensions.data();
     deviceInfo.pEnabledFeatures = &features10;
 
-    VkDevice device;
     VK_CHECK(vkCreateDevice(physical, &deviceInfo, nullptr, &device));
 
-    return device;
+    // graphics/present queue
+    vkGetDeviceQueue(device, queueFamilyIndex, 0, &queue);
+    assert(queue);
 }
 
-VkSwapchainKHR VulkanGraphics::createSwapchain(VkDevice device, VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, uint32_t queueFamilyIndex, GLFWwindow *window, VkExtent2D &swapchainExtent)
+void VulkanGraphics::createSwapchain(VkDevice device, VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, uint32_t queueFamilyIndex, GLFWwindow *window, VkExtent2D &swapchainExtent)
 {
     // Get surface capabilities
     VkSurfaceCapabilitiesKHR capabilities;
@@ -425,15 +391,16 @@ VkSwapchainKHR VulkanGraphics::createSwapchain(VkDevice device, VkPhysicalDevice
     swapchainCI.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     swapchainCI.presentMode = VK_PRESENT_MODE_FIFO_KHR; // NOTE: this only works with vsync
 
-    VkSwapchainKHR swapchain;
     VK_CHECK(vkCreateSwapchainKHR(device, &swapchainCI, nullptr, &swapchain));
-    return swapchain;
-}
 
-std::vector<VkImageView> VulkanGraphics::createSwapchainImageViews(VkDevice device, std::vector<VkImage> &swapchainImages)
-{
+    // get swapchain images
+    uint32_t imageCount = 0;
+    vkGetSwapchainImagesKHR(device, swapchain, &imageCount, nullptr);
+    swapchainImages.resize(imageCount);
+    vkGetSwapchainImagesKHR(device, swapchain, &imageCount, swapchainImages.data());
+
     // create swapchain image views from images
-    std::vector<VkImageView> swapchainImageViews(swapchainImages.size());
+    swapchainImageViews.resize(swapchainImages.size());
     for (uint32_t i = 0; i < swapchainImageViews.size(); i++) {
         VkImageViewCreateInfo viewInfo = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
         viewInfo.image = swapchainImages[i];
@@ -447,8 +414,6 @@ std::vector<VkImageView> VulkanGraphics::createSwapchainImageViews(VkDevice devi
 
         VK_CHECK(vkCreateImageView(device, &viewInfo, nullptr, &swapchainImageViews[i]));
     }
-
-    return swapchainImageViews;
 }
 
 VkCommandPool VulkanGraphics::createCommandPool(VkDevice device, uint32_t queueFamilyIndex)
@@ -476,6 +441,15 @@ std::array<VkCommandBuffer, FRAMES_IN_FLIGHT> VulkanGraphics::createCommandBuffe
     return commandBuffers;
 }
 
+void VulkanGraphics::createSyncPrimitives()
+{
+    for (unsigned int i = 0; i < FRAMES_IN_FLIGHT; i++) {
+        acquireSemaphores[i] = createSemaphore(device);
+        submitSemaphores[i] = createSemaphore(device);
+        finishRenderFences[i] = createFence(device, VK_FENCE_CREATE_SIGNALED_BIT);
+    }
+}
+
 void VulkanGraphics::recreateSwapchain()
 {
     resizeRequested = false;
@@ -493,28 +467,20 @@ void VulkanGraphics::recreateSwapchain()
     }
     vkDestroySwapchainKHR(device, swapchain, nullptr);
 
+    destroyImage(renderImage);
     destroyImage(depthImage);
 
     for (unsigned int i = 0; i < FRAMES_IN_FLIGHT; i++) {
         vkDestroySemaphore(device, acquireSemaphores[i], nullptr);
         vkDestroySemaphore(device, submitSemaphores[i], nullptr);
         vkDestroyFence(device, finishRenderFences[i], nullptr);
-        acquireSemaphores[i] = vkutils::createSemaphore(device);
-        submitSemaphores[i] = vkutils::createSemaphore(device);
-        finishRenderFences[i] = vkutils::createFence(device, VK_FENCE_CREATE_SIGNALED_BIT);
     }
+    createSyncPrimitives();
 
-    swapchain = createSwapchain(device, physicalDevice, surface, queueFamilyIndex, pWindow, swapchainExtent);
+    createSwapchain(device, physicalDevice, surface, queueFamilyIndex, pWindow, swapchainExtent);
 
-    // get swapchain images
-    uint32_t imageCount = 0;
-    vkGetSwapchainImagesKHR(device, swapchain, &imageCount, nullptr);
-    swapchainImages.resize(imageCount);
-    vkGetSwapchainImagesKHR(device, swapchain, &imageCount, swapchainImages.data());
-
-    swapchainImageViews = createSwapchainImageViews(device, swapchainImages);
-
-    createImage(depthImage, swapchainExtent.width, swapchainExtent.height, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_DEPTH_BIT);
+    createImage(renderImage, swapchainExtent.width, swapchainExtent.height, VK_FORMAT_B8G8R8A8_SRGB, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_ASPECT_COLOR_BIT, multisampleCount);
+    createImage(depthImage, swapchainExtent.width, swapchainExtent.height, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT, multisampleCount);
 };
 
 VkCommandBuffer VulkanGraphics::beginCommandBuffer()
@@ -527,7 +493,7 @@ VkCommandBuffer VulkanGraphics::beginCommandBuffer()
         recreateSwapchain();
         beginCommandBuffer(); // is this right?
     } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
-        printf("Failed to acquire swapchain image.\n");
+        Logger::println(LOG_ERROR, "Failed to acquire swapchain image.");
         exit(EXIT_FAILURE);
     }
 
@@ -579,125 +545,13 @@ void VulkanGraphics::submitCommandBuffer(VkCommandBuffer cmd)
     currentFrame = (currentFrame + 1) % FRAMES_IN_FLIGHT;
 }
 
-void VulkanGraphics::beginFrame(VkCommandBuffer cmd)
-{
-    vkutils::insertImageBarrier(cmd, swapchainImages[imageIndex], 0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1});
-
-    VkRenderingAttachmentInfo colorAttachmentInfo = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
-    colorAttachmentInfo.clearValue = {{{0.0, 0.0, 0.0, 1.0}}};
-    colorAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    colorAttachmentInfo.imageView = swapchainImageViews[imageIndex];
-    colorAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    colorAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-
-    VkRenderingInfo renderingInfo = {VK_STRUCTURE_TYPE_RENDERING_INFO};
-    renderingInfo.colorAttachmentCount = 1;
-    renderingInfo.pColorAttachments = &colorAttachmentInfo;
-    renderingInfo.renderArea.extent = swapchainExtent;
-    renderingInfo.renderArea.offset = {0};
-    renderingInfo.layerCount = 1;
-
-    // Rendering begin
-    vkCmdBeginRendering(cmd, &renderingInfo);
-
-    // Setup dynamic state
-    vkutils::setViewport(cmd, 0.0f, 0.0f, swapchainExtent.width, swapchainExtent.height);
-    vkutils::setScissor(cmd, swapchainExtent);
-}
-
-void VulkanGraphics::beginFrame(VkCommandBuffer cmd, Image &depthImage)
-{
-    vkutils::insertImageBarrier(cmd, swapchainImages[imageIndex], 0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1});
-    vkutils::insertImageBarrier(cmd, depthImage.handle, 0, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1});
-
-    VkRenderingAttachmentInfo colorAttachmentInfo = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
-    colorAttachmentInfo.clearValue = {{{0.0, 0.0, 0.0, 1.0}}};
-    colorAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    colorAttachmentInfo.imageView = swapchainImageViews[imageIndex];
-    colorAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-    colorAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-
-    VkRenderingAttachmentInfo depthAttachmentInfo = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
-    depthAttachmentInfo.clearValue.depthStencil = {0.0, 0};
-    depthAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-    depthAttachmentInfo.imageView = depthImage.view;
-    depthAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-    depthAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-
-    VkRenderingInfo renderingInfo = {VK_STRUCTURE_TYPE_RENDERING_INFO};
-    renderingInfo.colorAttachmentCount = 1;
-    renderingInfo.pColorAttachments = &colorAttachmentInfo;
-    renderingInfo.pDepthAttachment = &depthAttachmentInfo;
-    renderingInfo.renderArea.extent = swapchainExtent;
-    renderingInfo.renderArea.offset = {0};
-    renderingInfo.layerCount = 1;
-
-    // Rendering begin
-    vkCmdBeginRendering(cmd, &renderingInfo);
-
-    // Setup dynamic state
-    vkutils::setViewport(cmd, 0.0f, 0.0f, swapchainExtent.width, swapchainExtent.height);
-    vkutils::setScissor(cmd, swapchainExtent);
-}
-
-void VulkanGraphics::beginFrame(VkCommandBuffer cmd, std::vector<std::pair<VkRenderingAttachmentInfo, Image>> &attachments, VkExtent2D extent)
-{
-    std::vector<VkRenderingAttachmentInfo> colorAttachments;
-    std::vector<VkRenderingAttachmentInfo> depthAttachments;
-
-    // XXX: i dont know if this bariers are rightly placed
-    for (auto &attachment : attachments) {
-        if (attachment.first.imageLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
-            colorAttachments.push_back(attachment.first);
-
-            vkutils::insertImageBarrier(
-                cmd, attachment.second.handle, 0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-                VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1});
-        } else if (attachment.first.imageLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) {
-            depthAttachments.push_back(attachment.first);
-
-            vkutils::insertImageBarrier(
-                cmd, attachment.second.handle, 0, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-                VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
-                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
-                {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1});
-        }
-    }
-
-    VkRenderingInfo renderingInfo = {VK_STRUCTURE_TYPE_RENDERING_INFO};
-    renderingInfo.colorAttachmentCount = colorAttachments.size();
-    renderingInfo.pColorAttachments = colorAttachments.data();
-    renderingInfo.pDepthAttachment = depthAttachments.data();
-    renderingInfo.renderArea.extent = extent;
-    renderingInfo.renderArea.offset = {0};
-    renderingInfo.layerCount = 1;
-
-    // Rendering begin
-    vkCmdBeginRendering(cmd, &renderingInfo);
-
-    // Setup dynamic state
-    vkutils::setViewport(cmd, 0.0f, 0.0f, extent.width, extent.height);
-    vkutils::setScissor(cmd, extent);
-}
-
-void VulkanGraphics::endFrame(VkCommandBuffer cmd, bool insertBarrier)
-{
-    vkCmdEndRendering(cmd);
-
-    if (insertBarrier) {
-        // transition image for presentation
-        vkutils::insertImageBarrier(
-            cmd, swapchainImages[imageIndex], VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, 0,
-            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-            {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1});
-    }
-}
-
 void VulkanGraphics::createBuffer(Buffer &buffer, uint64_t size, VkBufferUsageFlags usage, VmaMemoryUsage memUsage)
 {
+    if (size <= 0) {
+        Logger::println(LOG_WARNING, "Cannot create buffer - size is 0.");
+        return;
+    }
+
     VkBufferCreateInfo bufferInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
     bufferInfo.size = size;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -724,9 +578,7 @@ void VulkanGraphics::destroyBuffer(Buffer &buffer)
     vmaDestroyBuffer(allocator, buffer.buffer, buffer.allocation);
 }
 
-void VulkanGraphics::createImage(Image &image, uint32_t width, uint32_t height, VkFormat format,
-                                 VkImageUsageFlags usage, VkImageViewType type, VkImageAspectFlags aspect,
-                                 VkFilter filter, VkSamplerAddressMode samplerMode, bool cubemap)
+void VulkanGraphics::createImage(Image &image, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage, VkImageAspectFlags aspect, VkSampleCountFlagBits samples, VkImageViewType type, VkFilter filter, VkSamplerAddressMode samplerMode)
 {
     VkImageCreateInfo imageInfo = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     imageInfo.imageType = VK_IMAGE_TYPE_2D;
@@ -734,22 +586,22 @@ void VulkanGraphics::createImage(Image &image, uint32_t width, uint32_t height, 
     imageInfo.extent = {width, height, 1};
     imageInfo.mipLevels = 1;
     imageInfo.arrayLayers = 1;
-
-    if (cubemap) {
-        imageInfo.arrayLayers = 6;
-        imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
-    }
-
-    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageInfo.samples = samples;
     imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
     imageInfo.usage = usage;
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    if (type == VK_IMAGE_VIEW_TYPE_CUBE) {
+        imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+        imageInfo.arrayLayers = 6;
+        imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+    }
 
     VmaAllocationCreateInfo allocInfo = {};
     allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
     allocInfo.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
 
-    vmaCreateImage(allocator, &imageInfo, &allocInfo, &image.handle, &image.allocation, &image.info);
+    VK_CHECK(vmaCreateImage(allocator, &imageInfo, &allocInfo, &image.handle, &image.allocation, &image.info));
 
     VkImageViewCreateInfo imageViewInfo = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
     imageViewInfo.image = image.handle;
@@ -761,12 +613,11 @@ void VulkanGraphics::createImage(Image &image, uint32_t width, uint32_t height, 
     imageViewInfo.format = format;
     imageViewInfo.subresourceRange = {aspect, 0, 1, 0, 1};
 
-    if (cubemap)
+    if (type == VK_IMAGE_VIEW_TYPE_CUBE)
         imageViewInfo.subresourceRange.layerCount = 6;
 
-    vkCreateImageView(device, &imageViewInfo, nullptr, &image.view);
+    VK_CHECK(vkCreateImageView(device, &imageViewInfo, nullptr, &image.view));
 
-    // TODO: make it configurable
     image.sampler = createSampler(filter, filter, samplerMode);
 }
 
@@ -784,6 +635,11 @@ void VulkanGraphics::destroyTexture(Texture &texture)
 
 void VulkanGraphics::uploadBuffer(Buffer &buffer, void *data, VkDeviceSize size)
 {
+    if (size <= 0) {
+        Logger::println(LOG_WARNING, "Cannot upload buffer - size is 0.");
+        return;
+    }
+
     Buffer staging;
     createBuffer(staging, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
     memcpy(staging.info.pMappedData, data, size);
@@ -812,7 +668,7 @@ void VulkanGraphics::uploadBuffer(Buffer &buffer, void *data, VkDeviceSize size)
     submit.commandBufferCount = 1;
     submit.pCommandBuffers = &copyCmd;
 
-    VkFence fence = vkutils::createFence(device, 0);
+    VkFence fence = createFence(device, 0);
     VK_CHECK(vkQueueSubmit(queue, 1, &submit, fence));
     VK_CHECK(vkWaitForFences(device, 1, &fence, VK_TRUE, ~0L));
     vkDestroyFence(device, fence, nullptr);
@@ -843,7 +699,7 @@ void VulkanGraphics::createTexture(Texture &texture, const TextureInfo &info, Vk
 {
     uint32_t size = info.width * info.height * info.channels;
 
-    createImage(texture.image, info.width, info.height, format, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_COLOR_BIT);
+    createImage(texture.image, info.width, info.height, format, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 
     Buffer staging;
     createBuffer(staging, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
@@ -893,7 +749,7 @@ void VulkanGraphics::createTexture(Texture &texture, const TextureInfo &info, Vk
     submit.commandBufferCount = 1;
     submit.pCommandBuffers = &copyCmd;
 
-    VkFence fence = vkutils::createFence(device, 0);
+    VkFence fence = createFence(device, 0);
     VK_CHECK(vkQueueSubmit(queue, 1, &submit, fence));
     VK_CHECK(vkWaitForFences(device, 1, &fence, VK_TRUE, ~0L));
     vkDestroyFence(device, fence, nullptr);
@@ -917,7 +773,7 @@ void VulkanGraphics::createTextureCubemap(Texture &texture, std::filesystem::pat
     uint32_t size = infos[0].width * infos[0].height * STBI_rgb_alpha * 6;
     uint32_t layerSize = size / 6;
 
-    createImage(texture.image, infos[0].width, infos[0].height, format, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_VIEW_TYPE_CUBE, VK_IMAGE_ASPECT_COLOR_BIT, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, true);
+    createImage(texture.image, infos[0].width, infos[0].height, format, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT, multisampleCount, VK_IMAGE_VIEW_TYPE_CUBE, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
 
     Buffer staging{};
     createBuffer(staging, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
@@ -975,7 +831,7 @@ void VulkanGraphics::createTextureCubemap(Texture &texture, std::filesystem::pat
     submit.commandBufferCount = 1;
     submit.pCommandBuffers = &copyCmd;
 
-    VkFence fence = vkutils::createFence(device, 0);
+    VkFence fence = createFence(device, 0);
     VK_CHECK(vkQueueSubmit(queue, 1, &submit, fence));
     VK_CHECK(vkWaitForFences(device, 1, &fence, VK_TRUE, ~0L));
     vkDestroyFence(device, fence, nullptr);
@@ -1030,4 +886,25 @@ void VulkanGraphics::initImGui()
 void VulkanGraphics::requestResize()
 {
     resizeRequested = true;
+}
+
+VkSemaphore VulkanGraphics::createSemaphore(VkDevice device)
+{
+    VkSemaphoreCreateInfo createInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
+
+    VkSemaphore semaphore;
+    VK_CHECK(vkCreateSemaphore(device, &createInfo, nullptr, &semaphore));
+
+    return semaphore;
+}
+
+VkFence VulkanGraphics::createFence(VkDevice device, VkFenceCreateFlags flags)
+{
+    VkFenceCreateInfo createInfo = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+    createInfo.flags = flags;
+
+    VkFence fence;
+    VK_CHECK(vkCreateFence(device, &createInfo, nullptr, &fence));
+
+    return fence;
 }

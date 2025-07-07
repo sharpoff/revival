@@ -21,6 +21,8 @@ public:
     void setTopology(VkPrimitiveTopology topology);
     void setPatchControlPoints(uint32_t points);
 
+    void setMultisampleCount(VkSampleCountFlagBits samples);
+
     VkPipeline build(VkDevice device, uint32_t colorAttachmentCount = 1, bool depthUsed = true);
 
 private:

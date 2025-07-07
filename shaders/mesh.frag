@@ -93,13 +93,14 @@ void main()
         float currentDepth = projCoords.z;
 
         float bias = max(0.0005 * (1.0 - NoL), 0.0001);
-        // float shadow = currentDepth + bias > closestDepth ? 1.0 : 0.5;
 
         // poisson sampling
         float shadow = 1.0;
-        for (int i = 0; i < 4; i++) {
-            if (TEX(light.shadowMapIndex, coords + poissonDisk[i] / 700.0).r  <  currentDepth - bias) {
-                shadow-=0.2;
+        if (light.shadowMapIndex > 0) {
+            for (int i = 0; i < 4; i++) {
+                if (TEX(light.shadowMapIndex, coords + poissonDisk[i] / 700.0).r  <  currentDepth - bias) {
+                    shadow-=0.2;
+                }
             }
         }
 

@@ -54,3 +54,5 @@ struct Billboard
     int textureIndex = -1;
     vec2 size = vec2(1.0f);
 };
+
+using Attachment = std::pair<VkRenderingAttachmentInfo, Image>;

@@ -1,29 +1,9 @@
 #include <revival/vulkan/utils.h>
 #include <fstream>
+#include <revival/logger.h>
 
 namespace vkutils
 {
-    VkSemaphore createSemaphore(VkDevice device)
-    {
-        VkSemaphoreCreateInfo createInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
-
-        VkSemaphore semaphore;
-        VK_CHECK(vkCreateSemaphore(device, &createInfo, nullptr, &semaphore));
-
-        return semaphore;
-    }
-
-    VkFence createFence(VkDevice device, VkFenceCreateFlags flags)
-    {
-        VkFenceCreateInfo createInfo = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
-        createInfo.flags = flags;
-
-        VkFence fence;
-        VK_CHECK(vkCreateFence(device, &createInfo, nullptr, &fence));
-
-        return fence;
-    }
-
     void insertImageBarrier(VkCommandBuffer cmd, VkImage image, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, VkImageSubresourceRange subresourceRange)
     {
         VkImageMemoryBarrier barrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
@@ -158,13 +138,13 @@ namespace vkutils
         return layout;
     }
 
-    VkShaderModule loadShaderModule(VkDevice device, const char *path)
+    VkShaderModule loadShaderModule(VkDevice device, const std::string path)
     {
         std::vector<char> spirv;
         std::ifstream file(path, std::ios::ate | std::ios::binary);
 
         if (!file.is_open()) {
-            printf("Failed to open binary file - %s\n", path);
+            Logger::println(LOG_ERROR, "Failed to open binary file - ", path);
             return nullptr;
         }
 
@@ -205,6 +185,20 @@ namespace vkutils
     void endDebugLabel(VkCommandBuffer cmd)
     {
         vkCmdEndDebugUtilsLabelEXT(cmd);
+    }
+
+    void beginRendering(VkCommandBuffer cmd, const VkRenderingAttachmentInfo *colorAttachments, uint32_t colorAttachmentCount, const VkRenderingAttachmentInfo *depthAttachment, VkExtent2D extent, uint32_t layerCount)
+    {
+        VkRenderingInfo renderingInfo = {VK_STRUCTURE_TYPE_RENDERING_INFO};
+        renderingInfo.colorAttachmentCount = colorAttachmentCount;
+        renderingInfo.pColorAttachments = colorAttachments;
+        renderingInfo.pDepthAttachment = depthAttachment;
+        renderingInfo.renderArea.extent = extent;
+        renderingInfo.renderArea.offset = {0};
+        renderingInfo.layerCount = 1;
+
+        // Rendering begin
+        vkCmdBeginRendering(cmd, &renderingInfo);
     }
 
     void setViewport(VkCommandBuffer cmd, float x, float y, float width, float height)

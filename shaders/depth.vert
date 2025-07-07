@@ -12,6 +12,7 @@ layout (binding = 0) readonly buffer Vertices
 layout (push_constant) uniform PushConstant
 {
     mat4 mvp;
+    int materialIndex;
 } push;
 
 void main()

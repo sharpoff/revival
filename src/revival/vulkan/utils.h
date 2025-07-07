@@ -1,13 +1,10 @@
 #pragma once
 
 #include <revival/vulkan/common.h>
+#include <string>
 
 namespace vkutils
 {
-    // primitive
-    VkSemaphore createSemaphore(VkDevice device);
-    VkFence createFence(VkDevice device, VkFenceCreateFlags flags);
-
     // barrier
     void insertImageBarrier(VkCommandBuffer cmd, VkImage image, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, VkImageSubresourceRange subresourceRange);
 
@@ -21,11 +18,13 @@ namespace vkutils
 
     // pipeline
     VkPipelineLayout createPipelineLayout(VkDevice device, VkDescriptorSetLayout *setLayout, VkPushConstantRange *pushConstant);
-    VkShaderModule loadShaderModule(VkDevice device, const char *path);
+    VkShaderModule loadShaderModule(VkDevice device, const std::string path);
 
     void setDebugName(VkDevice device, uint64_t objectHandle, VkObjectType objectType, const char *name);
     void beginDebugLabel(VkCommandBuffer cmd, const char *name, vec4 color = {1.0, 1.0, 1.0, 1.0});
     void endDebugLabel(VkCommandBuffer cmd);
+
+    void beginRendering(VkCommandBuffer cmd, const VkRenderingAttachmentInfo *colorAttachments, uint32_t colorAttachmentCount, const VkRenderingAttachmentInfo *depthAttachment, VkExtent2D extent, uint32_t layerCount = 1);
 
     void setViewport(VkCommandBuffer cmd, float x, float y, float width, float height);
     void setScissor(VkCommandBuffer cmd, VkExtent2D extent);

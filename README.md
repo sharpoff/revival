@@ -1,4 +1,4 @@
-# Revival game engine
+# Revival game engine (old interation of my engine)
 
 Game engine that i created to learn Vulkan and a bit of other topics in game engine development.
 
